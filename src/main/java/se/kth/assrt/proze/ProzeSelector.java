@@ -37,7 +37,7 @@ public class ProzeSelector {
   public void analyzeWithSpoon() {
     logger.info("Processing project " + projectName);
     MavenLauncher launcher = new MavenLauncher(projectPath.toString(),
-            MavenLauncher.SOURCE_TYPE.ALL_SOURCE);
+            MavenLauncher.SOURCE_TYPE.APP_SOURCE);
     launcher.buildModel();
     CtModel model = launcher.getModel();
     ProzeMethodProcessor prozeMethodProcessor = new ProzeMethodProcessor();
