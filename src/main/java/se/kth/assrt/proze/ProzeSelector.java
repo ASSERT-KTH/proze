@@ -23,7 +23,7 @@ public class ProzeSelector {
     this.projectName = projectPath.getFileName().toString();
   }
 
-  private void writeJsonReportToDisk(List<ProzeTargetMethod> targetMethodList) {
+  private void writeJsonReportToDisk(List<ProzeTestMethod> targetMethodList) {
     String report = "./report-" + projectName + ".json";
     Gson gson = new GsonBuilder().setPrettyPrinting().create();
     try (FileWriter writer = new FileWriter(report)) {
@@ -36,12 +36,19 @@ public class ProzeSelector {
 
   public void analyzeWithSpoon() {
     logger.info("Processing project " + projectName);
-    MavenLauncher launcher = new MavenLauncher(projectPath.toString(),
-            MavenLauncher.SOURCE_TYPE.APP_SOURCE);
-    launcher.buildModel();
+    MavenLauncher launcher;
+    try {
+      logger.info("Considering all sources (app + test)");
+      launcher = new MavenLauncher(projectPath.toString(),
+              MavenLauncher.SOURCE_TYPE.ALL_SOURCE);
+      launcher.buildModel();
+    } catch (Exception e) {
+      logger.info(e.getMessage());
+      return;
+    }
     CtModel model = launcher.getModel();
-    ProzeMethodProcessor prozeMethodProcessor = new ProzeMethodProcessor();
-    model.processWith(prozeMethodProcessor);
-    writeJsonReportToDisk(prozeMethodProcessor.getListOfTargetMethods());
+    ProzeTestMethodProcessor testMethodProcessor = new ProzeTestMethodProcessor();
+    model.processWith(testMethodProcessor);
+    writeJsonReportToDisk(testMethodProcessor.getTestMethods());
   }
 }
