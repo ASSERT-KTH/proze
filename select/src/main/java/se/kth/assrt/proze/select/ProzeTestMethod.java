@@ -1,19 +1,19 @@
-package se.kth.assrt.proze;
+package se.kth.assrt.proze.select;
 
 import java.util.List;
 
 public class ProzeTestMethod {
-  String declaringType;
-  String name;
+  String testClassName;
+  String testName;
   String signature;
   List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams;
 
-  public ProzeTestMethod(String declaringType,
-                         String name,
+  public ProzeTestMethod(String testClassName,
+                         String testName,
                          String signature,
                          List<InvocationWithPrimitiveParams> invocationsWithPrimitives) {
-    this.declaringType = declaringType;
-    this.name = name;
+    this.testClassName = testClassName;
+    this.testName = testName;
     this.signature = signature;
     this.invocationWithPrimitiveParams = invocationsWithPrimitives;
   }

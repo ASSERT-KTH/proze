@@ -1,3 +1,4 @@
 target/
 .idea/
-report-*.json
+**/.ipynb_checkpoints/
+**/*report-*.json

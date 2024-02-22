@@ -1,4 +1,4 @@
-package se.kth.assrt.proze;
+package se.kth.assrt.proze.select;
 
 import picocli.CommandLine;
 

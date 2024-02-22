@@ -1,4 +1,4 @@
-package se.kth.assrt.proze;
+package se.kth.assrt.proze.select;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
