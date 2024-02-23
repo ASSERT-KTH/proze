@@ -24,7 +24,7 @@
  <plugin>
    <artifactId>maven-surefire-plugin</artifactId>
      <configuration>
-       <argLine>@{argLine} -javaagent:/path/to/glowroot/glowroot.jar</argLine>
+       <argLine>-javaagent:/path/to/glowroot/glowroot.jar</argLine>
      </configuration>
  </plugin>
 ```
