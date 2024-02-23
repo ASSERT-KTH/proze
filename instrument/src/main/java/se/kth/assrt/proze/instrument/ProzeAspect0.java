@@ -8,8 +8,6 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,7 +18,7 @@ public class ProzeAspect0 {
           methodName = "methodToInstrument",
           methodParameterTypes = {"param1", "param2"},
           timerName = "Timer - name")
-  public static class TargetMethodAdvice {
+  public static class TargetMethodAdvice implements AdviceTemplate {
     private static final TimerName timer = Agent.getTimerName(TargetMethodAdvice.class);
     private static final String transactionType = "Target";
     private static final int COUNT = 0;
@@ -28,23 +26,17 @@ public class ProzeAspect0 {
     private static final String methodParamTypesString = String.join(",",
             TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodParameterTypes());
     private static final String postfix = methodParamTypesString.isEmpty() ? "" : "_" + methodParamTypesString;
-    public static final String methodFQN = TargetMethodAdvice.class.getAnnotation(Pointcut.class).className() + "."
+    private static final String methodFQN = TargetMethodAdvice.class.getAnnotation(Pointcut.class).className() + "."
             + TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodName() + postfix;
-    private static final String methodSimpleName = TargetMethodAdvice.class.getAnnotation(
-            Pointcut.class).methodName();
     static MethodInvocation methodInvocation = new MethodInvocation();
 
-    private static List<String> testMethodsThatCallThisMethod = List.of();
-    static final Gson gson = new Gson();
+    private static List<String> testMethodsThatCallThisMethod = List.of("fully.qualified.names.of.testclasses.and.test.methods");
 
-    private static void setup() {
-    }
+    static final Gson gson = new Gson();
 
     private synchronized static void writeObjectToFile(
             MethodInvocation invocationToSerialize, String fileToSerializeIn) {
       try {
-        String storageDir = "/tmp/proze-object-data/";
-        Files.createDirectories(Paths.get(storageDir));
         FileWriter objectFileWriter = new FileWriter(
                 storageDir + fileToSerializeIn, true);
         String json = gson.toJson(invocationToSerialize);
@@ -61,10 +53,15 @@ public class ProzeAspect0 {
       }
     }
 
+    private static boolean isCalledByTest() {
+      return Arrays.stream(Thread.currentThread().getStackTrace()).limit(10).anyMatch(e ->
+              testMethodsThatCallThisMethod.contains(e.getClassName() + "." + e.getMethodName()));
+    }
+
     @IsEnabled
     public static boolean enableProfileCollection() {
       INVOCATION_COUNT++;
-      setup();
+      AdviceTemplate.setup();
       return true;
     }
 
@@ -75,6 +72,7 @@ public class ProzeAspect0 {
                                       @BindMethodName String methodName) {
       methodInvocation.setInvocationCount(INVOCATION_COUNT);
       methodInvocation.setParameters(parameterObjects);
+      methodInvocation.setCalledByInvokingTest(isCalledByTest());
       methodInvocation.setStackTrace(Arrays.toString(Thread.currentThread().getStackTrace()));
       MessageSupplier messageSupplier = MessageSupplier.create(
               "className: {}, methodName: {}",
@@ -88,7 +86,7 @@ public class ProzeAspect0 {
     @OnReturn
     public static void onReturn(@BindReturn Object returnedObject,
                                 @BindTraveler TraceEntry traceEntry) {
-      writeObjectToFile(methodInvocation, methodSimpleName + ".json");
+      writeObjectToFile(methodInvocation, methodFQN + ".json");
       traceEntry.end();
     }
 
