@@ -45,8 +45,9 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return parameterTypes;
   }
 
-  private boolean isInvocationOnJavaLibraryMethod(CtInvocation<?> invocation) {
-    List<String> typesToIgnore = List.of("java", "junit.framework");
+  private boolean isInvocationOnJavaOrExternalLibraryMethod(CtInvocation<?> invocation) {
+    List<String> typesToIgnore = List.of("java", "junit.framework",
+            "org.mockito", "org.powermock", "org.testng");
     return typesToIgnore.stream().anyMatch(t -> invocation.getExecutable()
             .getDeclaringType().getQualifiedName().startsWith(t));
   }
@@ -60,7 +61,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         for (CtInvocation<?> invocation : invocationsInStatement) {
           if (!invocation.getArguments().isEmpty()
                   & !invocation.toString().toLowerCase().contains("assert")) {
-            if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaLibraryMethod(invocation)) {
+            if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
               InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
                       invocation.prettyprint(),
                       invocation.getExecutable().getDeclaringType().getQualifiedName()
