@@ -11,6 +11,7 @@
   <modules>
     <module>select</module>
     <module>instrument</module>
+    <module>generate</module>
   </modules>
 
   <properties>
