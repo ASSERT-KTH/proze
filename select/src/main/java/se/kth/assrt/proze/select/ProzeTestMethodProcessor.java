@@ -13,6 +13,8 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
   private final List<ProzeTestMethod> testMethods = new LinkedList<>();
 
+  private final Set<String> setOfTestClasses = new LinkedHashSet<>();
+
   private boolean methodIsNotEmpty(CtMethod<?> method) {
     Optional<CtBlock<?>> methodBody = Optional.ofNullable(method.getBody());
     return methodBody.isPresent() && !methodBody.get().getStatements().isEmpty();
@@ -83,6 +85,10 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return testMethods;
   }
 
+  public Set<String> getSetOfTestClasses() {
+    return setOfTestClasses;
+  }
+
   @Override
   public void process(CtMethod<?> method) {
     if (method.isPublic()
@@ -93,6 +99,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
               method.getSignature(),
               getMethodInvocationsWithPrimitiveParameters(method));
       testMethods.add(testMethod);
+      setOfTestClasses.add(method.getDeclaringType().getSimpleName());
     }
   }
 }

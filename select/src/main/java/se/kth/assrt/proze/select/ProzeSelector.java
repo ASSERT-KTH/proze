@@ -11,6 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 public class ProzeSelector {
 
@@ -34,6 +35,21 @@ public class ProzeSelector {
     }
   }
 
+  private void writeSetOfTestClassesToRun(Set<String> setOfTestClasses) {
+    String report = "./run-" + projectName + "-test-classes.sh";
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    try (FileWriter writer = new FileWriter(report)) {
+      writer.write("#!/bin/bash\n");
+      for (String testClass : setOfTestClasses) {
+        writer.write("echo \"[PROZE-INFO] Running tests in " + testClass + "\"\n");
+        writer.write("mvn test -Dtest=\"" + testClass + "\"\n");
+      }
+      logger.info("mvn test script saved in " + report);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
   public void analyzeWithSpoon() {
     logger.info("Processing project " + projectName);
     MavenLauncher launcher;
@@ -50,5 +66,6 @@ public class ProzeSelector {
     ProzeTestMethodProcessor testMethodProcessor = new ProzeTestMethodProcessor();
     model.processWith(testMethodProcessor);
     writeJsonReportToDisk(testMethodProcessor.getTestMethods());
+    writeSetOfTestClassesToRun(testMethodProcessor.getSetOfTestClasses());
   }
 }

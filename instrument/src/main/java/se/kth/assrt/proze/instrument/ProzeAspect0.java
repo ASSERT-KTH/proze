@@ -62,7 +62,7 @@ public class ProzeAspect0 {
     public static boolean enableProfileCollection() {
       INVOCATION_COUNT++;
       AdviceTemplate.setup();
-      return true;
+      return INVOCATION_COUNT <= 1000;
     }
 
     @OnBefore
