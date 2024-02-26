@@ -1,6 +1,9 @@
 import json
 import sys
 
+def prepare_method_signature(method_signature):
+  return method_signature.replace("(", "_").replace(")", "")
+
 def prepare_method_wise_report(test_methods):
   methods_called = set()
   for i in range(len(test_methods)):
@@ -17,7 +20,7 @@ def prepare_method_wise_report(test_methods):
             "method_name": "",
             "parameters": "",
             "invoked_by_tests": []}
-    data["full_method_signature"] = m
+    data["full_method_signature"] = prepare_method_signature(m)
     for j in range(len(test_methods)):
       this_test_method = test_methods[j]
       for k in range(len(this_test_method["invocationWithPrimitiveParams"])):
