@@ -29,9 +29,9 @@ def generate_aspects(df):
           if ("public class ProzeAspect0" in line):
             line = line.replace("0", str(count))
           if ("@Pointcut(className =" in line):
-            line = re.sub(r"=\s\"(.+)\",", "= \"" + row['declaring_type'] + "\",", line)
+            line = re.sub(r"=\s\"(.+)\",", "= \"" + row['declaringType'] + "\",", line)
           if ("methodName = " in line):
-            line = re.sub(r"=\s\"(.+)\",", "= \"" + row['method_name'] + "\",", line)
+            line = re.sub(r"=\s\"(.+)\",", "= \"" + row['methodName'] + "\",", line)
           if ("methodParameterTypes = " in line):
             if not (row['parameters']):
               param_list = ""
@@ -39,11 +39,11 @@ def generate_aspects(df):
               param_list = sanitize_parameter_and_test_list(str(row['parameters']))
             line = re.sub(r"=\s{.*},", "= {" + param_list + "},", line)
           if ("timerName = " in line):
-            line = re.sub(r"=\s\".+\"\)", "= \"" + row['declaring_type'] + "-" + row['method_name'] + "\")", line)
+            line = re.sub(r"=\s\".+\"\)", "= \"" + row['declaringType'] + "-" + row['methodName'] + "\")", line)
           if ("int COUNT = " in line):
             line = re.sub(r"=\s\d+;", "= " + str(count) + ";", line)
           if ("testMethodsThatCallThisMethod = " in line):
-            test_list = sanitize_parameter_and_test_list(str(row["invoked_by_tests"]))
+            test_list = sanitize_parameter_and_test_list(str(row["invokedByTests"]))
             test_list = test_list.replace(", ", ",\n            ")
             line = re.sub(r"\(.+\)", "(\n            " + test_list + ")", line)
           f.write(line)
