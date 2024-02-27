@@ -15,21 +15,21 @@ def prepare_method_wise_report(test_methods):
   
   method_list = []
   for m in methods_called:
-    data = {"full_method_signature": "",
-            "declaring_type": "",
-            "method_name": "",
+    data = {"fullMethodSignature": "",
+            "declaringType": "",
+            "methodName": "",
             "parameters": "",
-            "invoked_by_tests": []}
-    data["full_method_signature"] = prepare_method_signature(m)
+            "invokedByTests": []}
+    data["fullMethodSignature"] = prepare_method_signature(m)
     for j in range(len(test_methods)):
       this_test_method = test_methods[j]
       for k in range(len(this_test_method["invocationWithPrimitiveParams"])):
         this_invocation = this_test_method["invocationWithPrimitiveParams"][k]
         if this_invocation["fullMethodSignature"] == m:
-          data["declaring_type"] = this_invocation["methodDeclaringType"]
-          data["method_name"] = this_invocation["methodName"]
+          data["declaringType"] = this_invocation["methodDeclaringType"]
+          data["methodName"] = this_invocation["methodName"]
           data["parameters"] = this_invocation["methodParameterTypes"]
-          data["invoked_by_tests"].append(str(this_test_method["testClassName"] + "." + this_test_method["testName"]))
+          data["invokedByTests"].append(str(this_test_method["testClassName"] + "." + this_test_method["testName"]))
     method_list.append(data)
   return method_list
 

@@ -8,9 +8,9 @@ def prepare_analysis_report(union_result, method_wise_report):
   final_report = []
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
-    data = method_df[method_df["full_method_signature"] == union_result[i]["full_method_signature"]].to_dict('records')[0]
-    data["union_prod_and_test_args"] = union_result[i]["union_prod_and_test_args"]
-    data["test_args"] = union_result[i]["test_args"]
+    data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
+    data["unionProdAndTestArgs"] = union_result[i]["unionProdAndTestArgs"]
+    data["testArgs"] = union_result[i]["testArgs"]
     final_report.append(data)
   return final_report
 
@@ -63,8 +63,8 @@ def analyze_data():
     print("[INFO] Size of union of test and production parameters:", len(union))
     print("=================================================================================================")
     full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", prod_data_file)
-    result.append({"full_method_signature": full_method_signature,
-                   "test_args": test_args, "union_prod_and_test_args": sorted(union)})
+    result.append({"fullMethodSignature": full_method_signature,
+                   "testArgs": test_args, "unionProdAndTestArgs": sorted(union)})
   return result
 
 def sanitize_file_to_json(data_file):
