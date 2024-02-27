@@ -9,8 +9,8 @@ def prepare_analysis_report(union_result, method_wise_report):
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["full_method_signature"] == union_result[i]["full_method_signature"]].to_dict('records')[0]
-    data["union_prod_and_test"] = union_result[i]["union_prod_and_test"]
-    data["test_parameters"] = union_result[i]["test_parameters"]
+    data["union_prod_and_test_args"] = union_result[i]["union_prod_and_test_args"]
+    data["test_args"] = union_result[i]["test_args"]
     final_report.append(data)
   return final_report
 
@@ -46,12 +46,12 @@ def analyze_data():
       print("[INFO] No distinct parameters in production, SKIPPING THIS METHOD")
       print("=================================================================================================")
       continue
-    test_parameters = []
+    test_args = []
     # map parameters to test that use it
     for index, row in test_data.iterrows():
       first_ten_stack_elements = row["stackTrace"].replace("[", "").replace("]", "").split(", ")[0:10]
       test = list(filter(lambda s: ("Test" in s), first_ten_stack_elements))
-      test_parameters.append({"test": test[0], "parameters": row["parametersAsString"]})
+      test_args.append({"test": test[0], "arguments": row["parametersAsString"]})
     # only in test
     only_test = list(set(test_data["parametersAsString"]) - set(prod_data["parametersAsString"]))
     print("[INFO] Parameters only in test, but not in production executions:", len(only_test))
@@ -64,7 +64,7 @@ def analyze_data():
     print("=================================================================================================")
     full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", prod_data_file)
     result.append({"full_method_signature": full_method_signature,
-                   "test_parameters": test_parameters, "union_prod_and_test": sorted(union)})
+                   "test_args": test_args, "union_prod_and_test_args": sorted(union)})
   return result
 
 def sanitize_file_to_json(data_file):
