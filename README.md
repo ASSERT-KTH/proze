@@ -40,3 +40,7 @@
 - `cd /path/to/proze/generate/`
 - `python3 analyze.py /path/to/method/wise/report.json`
   - This generates `analyzed-method-wise-report-<project-name>.json`
+- `mvn clean install`
+- `java -jar target/generate-version-jar-with-dependencies.jar /path/to/maven/project/ ./analyzed-method-wise-report-<project-name>.json`
+  - The generated test classes are prefixed with `TestProze` under `output/generated/<project-name>/`
+  - Add these generated tests within a new module within the project
