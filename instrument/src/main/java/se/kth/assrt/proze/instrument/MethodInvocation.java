@@ -13,7 +13,14 @@ public class MethodInvocation {
     this.invocationCount = invocationCount;
   }
 
-  public void setParameters(Object parameters) {
+  public void setParameters(Object[] parameters, String[] parameterTypes) {
+    for (int i = 0; i < parameters.length; i++) {
+      // handle commas by removing them :)
+      // they are put back when generating tests
+      if (parameterTypes[i].equals("java.lang.String"))
+        parameters[i] = parameters[i].toString()
+                .replaceAll(",", "PROZE-REDACTED-COMMA");
+    }
     this.parameters = parameters;
   }
 

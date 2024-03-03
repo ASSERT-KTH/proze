@@ -71,7 +71,9 @@ public class ProzeAspect0 {
                                       @BindParameterArray Object parameterObjects,
                                       @BindMethodName String methodName) {
       methodInvocation.setInvocationCount(INVOCATION_COUNT);
-      methodInvocation.setParameters(parameterObjects);
+      String[] parameterTypes = TargetMethodAdvice.class.getAnnotation(Pointcut.class)
+              .methodParameterTypes();
+      methodInvocation.setParameters((Object[]) parameterObjects, parameterTypes);
       methodInvocation.setCalledByInvokingTest(isCalledByTest());
       methodInvocation.setStackTrace(Arrays.toString(Thread.currentThread().getStackTrace()));
       MessageSupplier messageSupplier = MessageSupplier.create(

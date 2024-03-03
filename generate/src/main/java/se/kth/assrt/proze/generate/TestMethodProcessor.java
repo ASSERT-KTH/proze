@@ -72,6 +72,8 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       for (int j = 0; j < currentTargetMethod.getParameters().size(); j++) {
         if (currentTargetMethod.getParameters().get(j).equals("java.lang.String")) {
           args[j] = "\"" + args[j] + "\"";
+          // put back removed commas
+          args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
         }
       }
       String argsAsString = Arrays.toString(args).substring(1);
