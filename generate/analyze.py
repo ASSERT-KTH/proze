@@ -1,5 +1,6 @@
 import glob
 import json
+import os
 import pandas as pd
 import re
 import sys
@@ -25,6 +26,8 @@ def analyze_data():
     prod_data = pd.read_json(prod_data_file)
     # read data for same the method from test folder
     corresponding_test_data_file = prod_data_file.replace("object-data-prod", "object-data-test")
+    if not os.path.isfile(corresponding_test_data_file):
+      continue
     test_data = pd.read_json(corresponding_test_data_file)
     print("[INFO] Invocations in production execution:", len(prod_data))
     print("[INFO] Invocations in test execution:", len(test_data))

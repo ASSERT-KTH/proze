@@ -3,3 +3,4 @@ target/
 **/.ipynb_checkpoints/
 **/*report-*.json
 run-*-test-classes.sh
+**/output/generated/
