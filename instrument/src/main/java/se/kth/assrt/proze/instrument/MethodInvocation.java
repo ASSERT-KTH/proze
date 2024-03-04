@@ -17,11 +17,15 @@ public class MethodInvocation {
     for (int i = 0; i < parameters.length; i++) {
       // handle commas by removing them :)
       // they are put back when generating tests
-      if (parameterTypes[i].equals("java.lang.String") && parameters[i] != null) {
-        parameters[i] = parameters[i].toString()
-                .replaceAll(",", "PROZE-REDACTED-COMMA");
-        if (parameters[i].toString().isEmpty()) {
-          parameters[i] = "PROZE-EMPTY-STRING";
+      if (parameterTypes[i].equals("java.lang.String")) {
+        if (parameters[i] != null) {
+          parameters[i] = parameters[i].toString()
+                  .replaceAll(",", "PROZE-REDACTED-COMMA");
+          if (parameters[i].toString().isEmpty()) {
+            parameters[i] = "PROZE-EMPTY-STRING";
+          }
+        } else {
+          parameters[i] = "PROZE-NULL-STRING";
         }
       }
     }

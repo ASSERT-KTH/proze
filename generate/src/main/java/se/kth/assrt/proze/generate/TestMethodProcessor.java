@@ -71,9 +71,14 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
               .split(",");
       for (int j = 0; j < currentTargetMethod.getParameters().size(); j++) {
         if (currentTargetMethod.getParameters().get(j).equals("java.lang.String")) {
-          if (args[j].equals("None"))
+          if (args[j].equals("PROZE-NULL-STRING"))
             args[j] = null;
           else {
+            // escape all " within this arg
+            args[j] = args[j].replaceAll("\"", "\\\\\"");
+            // remove all \n within this arg
+            args[j] = args[j].replaceAll("\n", "");
+            // enclose string within quotes => "arg"
             args[j] = "\"" + args[j] + "\"";
             // put back removed commas
             args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
