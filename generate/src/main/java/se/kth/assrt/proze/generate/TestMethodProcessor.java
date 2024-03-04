@@ -71,9 +71,17 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
               .split(",");
       for (int j = 0; j < currentTargetMethod.getParameters().size(); j++) {
         if (currentTargetMethod.getParameters().get(j).equals("java.lang.String")) {
-          args[j] = "\"" + args[j] + "\"";
-          // put back removed commas
-          args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
+          if (args[j].equals("None"))
+            args[j] = null;
+          else {
+            args[j] = "\"" + args[j] + "\"";
+            // put back removed commas
+            args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
+            // put back empty strings
+            args[j] = args[j].replaceAll("PROZE-EMPTY-STRING", "");
+          }
+        } else if (currentTargetMethod.getParameters().get(j).equals("boolean")) {
+          args[j] = args[j].toLowerCase();
         }
       }
       String argsAsString = Arrays.toString(args).substring(1);
