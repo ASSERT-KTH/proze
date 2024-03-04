@@ -49,7 +49,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
   private boolean isInvocationOnJavaOrExternalLibraryMethod(CtInvocation<?> invocation) {
     List<String> typesToIgnore = List.of("java", "junit.framework", "io.dropwizard",
-            "org.junit", "org.hamcrest", "org.mockito", "org.powermock",
+            "org.apache.commons.lang", "org.junit", "org.hamcrest", "org.mockito", "org.powermock",
             "org.testng", "org.slf4j", "com.carrotsearch", "com.fasterxml");
     return typesToIgnore.stream().anyMatch(t -> invocation.getExecutable()
             .getDeclaringType().getQualifiedName().startsWith(t));
