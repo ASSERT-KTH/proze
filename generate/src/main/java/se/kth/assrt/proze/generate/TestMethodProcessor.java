@@ -119,10 +119,10 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         }
       }
     });
-    // remove other @Test methods
+    // remove other @Test methods, not other methods such as @BeforeTest (testng)
     for (CtMethod<?> testMethod : copyOfTestClass.getMethods().stream()
             .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains("Test")))
+                    .anyMatch(a -> a.toString().contains(".Test")))
             .collect(Collectors.toList())) {
       if (!testMethod.getSimpleName().equals(testMethodToCopy))
         copyOfTestClass.removeMethod(testMethod);
