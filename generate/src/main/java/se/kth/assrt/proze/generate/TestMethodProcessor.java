@@ -181,7 +181,13 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         for (String testMethod : testClassMethodMap.get(testClass)) {
           logger.info("testMethod " + testMethod);
           CtType<?> thisTestClass = foundTestClass.get();
-          String classNameSuffix = "_" + method.getSimpleName() + "_" + testMethod;
+          String classNameSuffix = "_" + method.getDeclaringType().getSimpleName()
+                  + "_" + method.getSignature()
+                  .replaceAll("\\(", "_")
+                  .replaceAll("\\.", "_")
+                  .replaceAll(",", "_")
+                  .replaceAll("\\)", "")
+                  + "_" + testMethod;
           CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
                   testMethod, classNameSuffix);
           logger.info("Generated class " + newClass.getQualifiedName());
