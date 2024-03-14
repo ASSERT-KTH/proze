@@ -94,13 +94,18 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   public void process(CtMethod<?> method) {
     if (method.isPublic()
             & methodHasTestAnnotation(method)) {
+      List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
+              getMethodInvocationsWithPrimitiveParameters(method);
       ProzeTestMethod testMethod = new ProzeTestMethod(
               method.getDeclaringType().getQualifiedName(),
               method.getSimpleName(),
               method.getSignature(),
-              getMethodInvocationsWithPrimitiveParameters(method));
+              invocationWithPrimitiveParams);
       testMethods.add(testMethod);
-      setOfTestClasses.add(method.getDeclaringType().getSimpleName());
+      // If there are candidate invocations within this test, get test class name
+      if (!invocationWithPrimitiveParams.isEmpty()) {
+        setOfTestClasses.add(method.getDeclaringType().getSimpleName());
+      }
     }
   }
 }

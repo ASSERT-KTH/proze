@@ -3,10 +3,10 @@ package se.kth.assrt.proze.select;
 import java.util.List;
 
 public class ProzeTestMethod {
-  String testClassName;
-  String testName;
-  String signature;
-  List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams;
+  private final String testClassName;
+  private final String testName;
+  private final String signature;
+  private final List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams;
 
   public ProzeTestMethod(String testClassName,
                          String testName,
@@ -16,5 +16,21 @@ public class ProzeTestMethod {
     this.testName = testName;
     this.signature = signature;
     this.invocationWithPrimitiveParams = invocationsWithPrimitives;
+  }
+
+  public String getTestClassName() {
+    return testClassName;
+  }
+
+  public String getTestName() {
+    return testName;
+  }
+
+  public String getSignature() {
+    return signature;
+  }
+
+  public List<InvocationWithPrimitiveParams> getInvocationWithPrimitiveParams() {
+    return invocationWithPrimitiveParams;
   }
 }
