@@ -4,3 +4,4 @@ target/
 **/*report-*.json
 run-*-test-classes.sh
 **/output/generated/
+*.tmp

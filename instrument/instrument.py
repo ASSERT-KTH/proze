@@ -31,6 +31,9 @@ def generate_aspects(df):
           if ("@Pointcut(className =" in line):
             line = re.sub(r"=\s\"(.+)\",", "= \"" + row['declaringType'] + "\",", line)
           if ("methodName = " in line):
+            # add angular brackets for constructor calls
+            if (row['methodName'] == "init"):
+              row['methodName'] = "<" + row['methodName'] + ">"
             line = re.sub(r"=\s\"(.+)\",", "= \"" + row['methodName'] + "\",", line)
           if ("methodParameterTypes = " in line):
             if not (row['parameters']):

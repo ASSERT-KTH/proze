@@ -12,7 +12,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MethodProcessorTest {
-  static final String projectPath = "src/test/resources/proze-sample";
+  static final String projectPath = "../sample/proze-sample";
   static MavenLauncher mavenLauncher;
   static CtModel model;
   static ProzeSelector prozeSelector;
@@ -35,30 +35,31 @@ public class MethodProcessorTest {
 
   @Test
   public void testThatTestMethodsAreFoundByProcessor() {
-    assertEquals(17,
+    assertEquals(20,
             prozeTestMethodProcessor.getTestMethods().size(),
-            "17 public @Test methods should be found within proze-sample");
+            "20 public @Test methods should be found within proze-sample");
   }
 
   @Test
   public void testThatSetOfTestClassesIsFound() {
-    assertEquals(5,
+    assertEquals(6,
             prozeTestMethodProcessor.getSetOfTestClasses().size(),
-            "5 test classes containing test methods " +
+            "6 test classes containing test methods " +
                     "with invocations should be found");
   }
 
   @Test
   public void testThatTestClassWithNoEligibleInvocationIsNotIncludedInSet() {
     assertTrue(prozeTestMethodProcessor.getSetOfTestClasses().stream().noneMatch(
-            c -> c.equals("OtherTest")),
+                    c -> c.equals("OtherTest")),
             "OtherTest does not have a test method containing an candidate invocation," +
                     "it should not be included in the set of test classes");
   }
 
   @Test
-  public void testInfoOnFirstTestMethod() {
-    ProzeTestMethod firstTestMethod = prozeTestMethodProcessor.getTestMethods().get(0);
+  public void testInfoOnMethodWithMultipleIntArgs() {
+    ProzeTestMethod firstTestMethod = prozeTestMethodProcessor.getTestMethods().stream()
+            .filter(m -> m.getTestName().equals("testMethodWithMultipleIntArgs")).findFirst().get();
     assertEquals("se.kth.assrt.proze.sample.MultipleIntTest",
             firstTestMethod.getTestClassName());
     assertEquals("testMethodWithMultipleIntArgs",
@@ -85,10 +86,26 @@ public class MethodProcessorTest {
     assertTrue(testMethod.isPresent());
     List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams
             = testMethod.get().getInvocationWithPrimitiveParams();
-    assertEquals(2, invocationWithPrimitiveParams.size());
-    assertEquals("methodWithMultipleIntArgs",
+    assertEquals(3, invocationWithPrimitiveParams.size());
+    assertEquals("init",
             invocationWithPrimitiveParams.get(0).getMethodName());
-    assertEquals("methodWithSingleStringArg",
+    assertEquals("methodWithMultipleIntArgs",
             invocationWithPrimitiveParams.get(1).getMethodName());
+    assertEquals("methodWithSingleStringArg",
+            invocationWithPrimitiveParams.get(2).getMethodName());
+  }
+
+  @Test
+  public void testInfoOnParameterizedConstructor() {
+    Optional<ProzeTestMethod> testMethod = prozeTestMethodProcessor.getTestMethods().stream()
+            .filter(m -> m.getTestName().equals("testBookCreationWithParameterizedConstructor"))
+            .findFirst();
+    assertTrue(testMethod.isPresent());
+    List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
+            testMethod.get().getInvocationWithPrimitiveParams();
+    assertEquals("init", invocationWithPrimitiveParams.get(0).getMethodName());
+    assertEquals(3, invocationWithPrimitiveParams.get(0).getMethodParameterTypes().size());
+    assertEquals(List.of("java.lang.String", "java.lang.String", "int"),
+            invocationWithPrimitiveParams.get(0).getMethodParameterTypes());
   }
 }

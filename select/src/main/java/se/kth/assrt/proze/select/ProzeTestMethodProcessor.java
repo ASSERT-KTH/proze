@@ -1,9 +1,7 @@
 package se.kth.assrt.proze.select;
 
 import spoon.processing.AbstractProcessor;
-import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtInvocation;
-import spoon.reflect.code.CtStatement;
+import spoon.reflect.code.*;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.visitor.filter.TypeFilter;
 
@@ -25,7 +23,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             .anyMatch(a -> a.toString().contains("Test")));
   }
 
-  private boolean areParametersPrimitivesOrStrings(CtInvocation<?> invocation) {
+  private boolean areParametersPrimitivesOrStrings(CtAbstractInvocation<?> invocation) {
     // resolve unreported cases such as getLeftSideBearing() invocations in testPDFBox3319()
     return (invocation.getArguments().stream().allMatch(a -> a.getType().isPrimitive()
             || a.getType().getQualifiedName().equals("java.lang.String")))
@@ -33,7 +31,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             || p.getQualifiedName().equals("java.lang.String")));
   }
 
-  private List<String> getParametersAsPrimitivesOrStrings(CtInvocation<?> invocation) {
+  private List<String> getParametersAsPrimitivesOrStrings(CtAbstractInvocation<?> invocation) {
     List<String> parameterTypes = new ArrayList<>();
     // infer types from arguments directly if all primitives or Strings
     invocation.getArguments().forEach(a -> {
@@ -47,7 +45,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return parameterTypes;
   }
 
-  private boolean isInvocationOnJavaOrExternalLibraryMethod(CtInvocation<?> invocation) {
+  private boolean isInvocationOnJavaOrExternalLibraryMethod(CtAbstractInvocation<?> invocation) {
     List<String> typesToIgnore = List.of("java", "junit.framework", "io.dropwizard",
             "org.apache.commons.lang", "org.junit", "org.hamcrest", "org.mockito", "org.powermock",
             "org.testng", "org.slf4j", "com.carrotsearch", "com.fasterxml");
@@ -55,28 +53,61 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             .getDeclaringType().getQualifiedName().startsWith(t));
   }
 
-  private List<InvocationWithPrimitiveParams> getMethodInvocationsWithPrimitiveParameters(CtMethod<?> testMethod) {
+  private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
+    List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
+    List<CtConstructorCall<?>> constructorCalls =
+            statement.getElements(new TypeFilter<>(CtConstructorCall.class));
+    for (CtConstructorCall<?> constructorCall : constructorCalls) {
+      if (!constructorCall.getArguments().isEmpty()
+              & areParametersPrimitivesOrStrings(constructorCall)
+              & !isInvocationOnJavaOrExternalLibraryMethod(constructorCall)) {
+        List<String> constructorParameterTypes = getParametersAsPrimitivesOrStrings(constructorCall);
+        String constructorParameterTypesStringified
+                = constructorParameterTypes.toString().replaceAll("\\s", "")
+                .replaceAll("\\[", "").replaceAll("]", "");
+        InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
+                constructorCall.prettyprint(),
+                constructorCall.getExecutable().getDeclaringType().getQualifiedName()
+                        + ".init(" + constructorParameterTypesStringified + ")",
+                constructorCall.getExecutable().getDeclaringType().getQualifiedName(),
+                "init",
+                constructorParameterTypes,
+                constructorCall.getExecutable().getType().getQualifiedName());
+        constructorInvocationsWithPrimitiveParams.add(thisInvocation);
+      }
+    }
+    return constructorInvocationsWithPrimitiveParams;
+  }
+
+  private List<InvocationWithPrimitiveParams> getMethodInvocationsWithPrimitiveParams(CtStatement statement) {
+    List<InvocationWithPrimitiveParams> methodInvocationsWithPrimitiveParams = new ArrayList<>();
+    List<CtInvocation<?>> invocationsInStatement = statement.getElements(new TypeFilter<>(CtInvocation.class));
+    for (CtInvocation<?> invocation : invocationsInStatement) {
+      if (!invocation.getArguments().isEmpty()
+              & !invocation.toString().toLowerCase().contains("assert")) {
+        if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
+          InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
+                  invocation.prettyprint(),
+                  invocation.getExecutable().getDeclaringType().getQualifiedName()
+                          + "." + invocation.getExecutable().getSignature(),
+                  invocation.getExecutable().getDeclaringType().getQualifiedName(),
+                  invocation.getExecutable().getSimpleName(),
+                  getParametersAsPrimitivesOrStrings(invocation),
+                  invocation.getExecutable().getType().getQualifiedName());
+          methodInvocationsWithPrimitiveParams.add(thisInvocation);
+        }
+      }
+    }
+    return methodInvocationsWithPrimitiveParams;
+  }
+
+  private List<InvocationWithPrimitiveParams> getInvocationsWithPrimitiveParameters(CtMethod<?> testMethod) {
     List<InvocationWithPrimitiveParams> invocationsWithPrimitiveParams = new LinkedList<>();
     if (methodIsNotEmpty(testMethod)) {
       List<CtStatement> statements = testMethod.getBody().getStatements();
       for (CtStatement statement : statements) {
-        List<CtInvocation<?>> invocationsInStatement = statement.getElements(new TypeFilter<>(CtInvocation.class));
-        for (CtInvocation<?> invocation : invocationsInStatement) {
-          if (!invocation.getArguments().isEmpty()
-                  & !invocation.toString().toLowerCase().contains("assert")) {
-            if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
-              InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
-                      invocation.prettyprint(),
-                      invocation.getExecutable().getDeclaringType().getQualifiedName()
-                              + "." + invocation.getExecutable().getSignature(),
-                      invocation.getExecutable().getDeclaringType().getQualifiedName(),
-                      invocation.getExecutable().getSimpleName(),
-                      getParametersAsPrimitivesOrStrings(invocation),
-                      invocation.getExecutable().getType().getQualifiedName());
-              invocationsWithPrimitiveParams.add(thisInvocation);
-            }
-          }
-        }
+        invocationsWithPrimitiveParams.addAll(getMethodInvocationsWithPrimitiveParams(statement));
+        invocationsWithPrimitiveParams.addAll(getConstructorInvocationsWithPrimitiveParams(statement));
       }
     }
     return invocationsWithPrimitiveParams;
@@ -95,7 +126,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     if (method.isPublic()
             & methodHasTestAnnotation(method)) {
       List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
-              getMethodInvocationsWithPrimitiveParameters(method);
+              getInvocationsWithPrimitiveParameters(method);
       ProzeTestMethod testMethod = new ProzeTestMethod(
               method.getDeclaringType().getQualifiedName(),
               method.getSimpleName(),

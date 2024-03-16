@@ -7,6 +7,14 @@ public class SampleMethods {
 
   public SampleMethods() {}
 
+  public SampleMethods(String field) {
+    this.someField = field;
+  }
+
+  public void methodWithNoArgs() {
+    System.out.println("Nothing to do here");
+  }
+
   public int methodWeWillNotSelectBecauseNonPrimitiveArg(List<String> stringList) {
     System.out.println("This method accepts a List of String arguments " +
             "so we will not select it");

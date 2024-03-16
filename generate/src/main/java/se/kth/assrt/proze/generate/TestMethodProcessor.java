@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.*;
@@ -26,13 +27,37 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   private final CtModel model;
   static TargetMethod currentTargetMethod;
   static final String generatorMethodName = "provideProzeArguments";
+  // to prevent the same constructor call from being handled multiple times
+  static Set<String> processedMethodSignatures = new LinkedHashSet<>();
 
   public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model) {
     this.targetMethods = targetMethods;
     this.model = model;
   }
 
-  public void replaceOriginalMethodArgumentWithArgsFromUnion(CtType<?> generatedClass) {
+  public void replaceOriginalConstructorArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
+    CtMethod<?> testMethod = generatedClass.getMethods().stream()
+            .filter(m -> m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().contains("ParameterizedTest")))
+            .findFirst().get();
+    List<CtConstructorCall<?>> constructorCalls = testMethod.getBody()
+            .getElements(new TypeFilter<>(CtConstructorCall.class));
+    for (CtConstructorCall<?> constructorCall : constructorCalls) {
+      if (currentTargetMethod.getDeclaringType()
+              .equals(constructorCall.getExecutable().getDeclaringType().getQualifiedName())
+              & currentTargetMethod.getParameters().toString().equals(
+                      constructorCall.getExecutable().getParameters().toString())) {
+        List<CtExpression<?>> params = new ArrayList<>();
+        for (int i = 0; i < currentTargetMethod.getParameters().size(); i++) {
+          params.add(generatedClass.getFactory()
+                  .createCodeSnippetExpression("param" + i));
+        }
+        constructorCall.setArguments(params);
+      }
+    }
+  }
+
+  public void replaceOriginalMethodArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
     CtMethod<?> testMethod = generatedClass.getMethods().stream()
             .filter(m -> m.getAnnotations().stream()
                     .anyMatch(a -> a.toString().contains("ParameterizedTest")))
@@ -182,11 +207,11 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
           logger.info("testMethod " + testMethod);
           CtType<?> thisTestClass = foundTestClass.get();
           String classNameSuffix = "_" + method.getDeclaringType().getSimpleName()
-                  + "_" + method.getSignature()
-                  .replaceAll("\\(", "_")
-                  .replaceAll("\\.", "_")
-                  .replaceAll(",", "_")
-                  .replaceAll("\\)", "")
+                  + "_" + (currentTargetMethod.getMethodName().equals("init") ? "init" : method.getSignature())
+                          .replaceAll("\\(", "_")
+                          .replaceAll("\\.", "_")
+                          .replaceAll(",", "_")
+                          .replaceAll("\\)", "")
                   + "_" + testMethod;
           CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
                   testMethod, classNameSuffix);
@@ -203,7 +228,27 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     String fullMethodSignature = method.getDeclaringType().getQualifiedName()
             + "." + method.getSignature();
     for (TargetMethod targetMethod : targetMethods) {
-      if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
+      // for constructor invocations
+      if (targetMethod.getMethodName().equals("init")) {
+        if (processedMethodSignatures.contains(targetMethod.getFullMethodSignature()))
+          continue;
+        if (method.getDeclaringType().getQualifiedName().equals(targetMethod.getDeclaringType())) {
+          currentTargetMethod = targetMethod;
+          logger.info("Working on constructor " + targetMethod.getFullMethodSignature());
+          List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
+          for (CtType<?> generatedClass : generatedClasses) {
+            // generate a static generator method, generateForMethod
+            generatedClass.addMethod(generateStaticParameterGeneratorMethod(
+                    generatedClass.getFactory()));
+            // replace parameter with call to generator
+            replaceOriginalConstructorArgumentsWithArgsFromUnion(generatedClass);
+          }
+          processedMethodSignatures.add(currentTargetMethod.getFullMethodSignature());
+          currentTargetMethod = null; // reset
+        }
+      }
+      // for method invocations
+      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
         currentTargetMethod = targetMethod;
         logger.info("Working on method " + fullMethodSignature);
         List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
@@ -212,8 +257,9 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
           generatedClass.addMethod(generateStaticParameterGeneratorMethod(
                   generatedClass.getFactory()));
           // replace parameter with call to generator
-          replaceOriginalMethodArgumentWithArgsFromUnion(generatedClass);
+          replaceOriginalMethodArgumentsWithArgsFromUnion(generatedClass);
         }
+        processedMethodSignatures.add(currentTargetMethod.getFullMethodSignature());
         currentTargetMethod = null;
         break;
       }

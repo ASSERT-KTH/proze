@@ -14,20 +14,22 @@ import java.util.List;
 public class ProzeAspect0 {
   private static int INVOCATION_COUNT;
 
+  /**
+   * <a href="https://github.com/glowroot/glowroot/blob/main/agent/plugin-api/src/main/java/org/glowroot/agent/plugin/api/weaving/Pointcut.java">...</a>
+   */
   @Pointcut(className = "fully.qualified.path.to.class",
           methodName = "methodToInstrument",
           methodParameterTypes = {"param1", "param2"},
           timerName = "Timer - name")
   public static class TargetMethodAdvice implements AdviceTemplate {
-    private static final TimerName timer = Agent.getTimerName(TargetMethodAdvice.class);
-    private static final String transactionType = "Target";
     private static final int COUNT = 0;
     private static Logger logger = Logger.getLogger(TargetMethodAdvice.class);
     private static final String methodParamTypesString = String.join(",",
             TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodParameterTypes());
     private static final String postfix = methodParamTypesString.isEmpty() ? "" : "_" + methodParamTypesString;
     private static final String methodFQN = TargetMethodAdvice.class.getAnnotation(Pointcut.class).className() + "."
-            + TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodName() + postfix;
+            + TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodName()
+            .replaceAll("<", "").replaceAll(">", "") + postfix;
     static MethodInvocation methodInvocation = new MethodInvocation();
 
     private static List<String> testMethodsThatCallThisMethod = List.of("fully.qualified.names.of.testclasses.and.test.methods");
@@ -66,36 +68,19 @@ public class ProzeAspect0 {
     }
 
     @OnBefore
-    public static TraceEntry onBefore(OptionalThreadContext context,
-                                      @BindReceiver Object receivingObject,
-                                      @BindParameterArray Object parameterObjects,
-                                      @BindMethodName String methodName) {
+    public static TraceEntry onBefore(@BindParameterArray Object parameterObjects) {
       methodInvocation.setInvocationCount(INVOCATION_COUNT);
       String[] parameterTypes = TargetMethodAdvice.class.getAnnotation(Pointcut.class)
               .methodParameterTypes();
       methodInvocation.setParameters((Object[]) parameterObjects, parameterTypes);
       methodInvocation.setCalledByInvokingTest(isCalledByTest());
       methodInvocation.setStackTrace(Arrays.toString(Thread.currentThread().getStackTrace()));
-      MessageSupplier messageSupplier = MessageSupplier.create(
-              "className: {}, methodName: {}",
-              TargetMethodAdvice.class.getAnnotation(Pointcut.class).className(),
-              methodName
-      );
-      return context.startTransaction(transactionType, methodName, messageSupplier, timer,
-              OptionalThreadContext.AlreadyInTransactionBehavior.CAPTURE_NEW_TRANSACTION);
+      return null;
     }
 
     @OnReturn
-    public static void onReturn(@BindReturn Object returnedObject,
-                                @BindTraveler TraceEntry traceEntry) {
+    public static void onReturn() {
       writeObjectToFile(methodInvocation, methodFQN + ".json");
-      traceEntry.end();
-    }
-
-    @OnThrow
-    public static void onThrow(@BindThrowable Throwable throwable,
-                               @BindTraveler TraceEntry traceEntry) {
-      traceEntry.endWithError(throwable);
     }
   }
 }

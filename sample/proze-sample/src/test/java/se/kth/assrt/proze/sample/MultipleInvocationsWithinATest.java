@@ -10,7 +10,10 @@ public class MultipleInvocationsWithinATest {
 
   @Test
   public void testMultipleInvocationsToDifferentMethods() {
-    SampleMethods sampleMethods = new SampleMethods();
+    // this constructor invocation should be included
+    SampleMethods sampleMethods = new SampleMethods("value");
+    // this constructor invocation should not be included
+    SampleMethods sampleMethods1 = new SampleMethods();
     // this invocation should be included
     int actualOne = sampleMethods.methodWithMultipleIntArgs(42, 42);
     // this invocation should be included
@@ -19,6 +22,7 @@ public class MultipleInvocationsWithinATest {
     // this invocation should not be included
     int actualThree = sampleMethods.methodWeWillNotSelectBecauseNonPrimitiveArg(
             List.of("some", "strings", "here"));
+    sampleMethods.methodWithNoArgs();
     assertEquals(84, actualOne);
     assertEquals("KOKO, THE GORILLA", actualTwo);
     assertEquals(3, actualThree);
