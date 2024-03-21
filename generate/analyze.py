@@ -10,6 +10,7 @@ def prepare_analysis_report(union_result, method_wise_report):
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
+    data["testFramework"] = method_df["testFramework"]
     data["numTestArgs"] = union_result[i]["numTestArgs"]
     data["numProdArgs"] = union_result[i]["numProdArgs"]
     data["sizeUnion"] = union_result[i]["sizeUnion"]
