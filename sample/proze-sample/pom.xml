@@ -48,7 +48,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surefire-plugin.version}</version>
         <configuration>
-          <argLine>-javaagent:/home/dee/dev/glowroot/glowroot.jar</argLine>
+<!--          <argLine>-javaagent:/path/to/glowroot/glowroot.jar</argLine>-->
         </configuration>
       </plugin>
       <plugin>
