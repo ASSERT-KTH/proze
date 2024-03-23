@@ -59,14 +59,6 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                 .anyMatch(a -> a.toString().contains(t)));
     }
 
-    private String getTestFramework(CtMethod<?> testMethod) {
-        if (testMethod.getAnnotations().stream()
-                .anyMatch(a -> a.toString().contains("testng.annotations.Test")))
-            return "TestNG";
-        else
-            return "JUnit";
-    }
-
     private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
         List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
         List<CtConstructorCall<?>> constructorCalls =
@@ -143,7 +135,6 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                     getInvocationsWithPrimitiveParameters(method);
             ProzeTestMethod testMethod = new ProzeTestMethod(
                     method.getDeclaringType().getQualifiedName(),
-                    getTestFramework(method),
                     method.getSimpleName(),
                     method.getSignature(),
                     invocationWithPrimitiveParams);

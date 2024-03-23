@@ -31,12 +31,11 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     static Set<String> processedMethodSignatures = new LinkedHashSet<>();
     private final CtModel model;
     List<TargetMethod> targetMethods;
-    private boolean isTestNG;
+    private static boolean isTestNG = false;
 
     public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model) {
         this.targetMethods = targetMethods;
         this.model = model;
-        this.isTestNG = Objects.equals(targetMethods.get(0).getTestFramework(), "TestNG");
     }
 
     public void replaceOriginalConstructorArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
@@ -202,6 +201,8 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
                 .filter(a -> a.toString().contains("Test")).findFirst().get();
         targetTestMethod.removeAnnotation(testAnnotation);
+        if (testAnnotation.toString().contains("testng.annotations.Test"))
+            isTestNG = true;
         if (isTestNG) {
             // add @Test with datasource annotation
             CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(

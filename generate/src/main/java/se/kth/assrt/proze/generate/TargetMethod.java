@@ -5,7 +5,6 @@ import java.util.Map;
 
 public class TargetMethod {
   String fullMethodSignature;
-  String testFramework;
   String declaringType;
   String methodName;
   List<String> parameters;
@@ -20,13 +19,6 @@ public class TargetMethod {
 
   public void setFullMethodSignature(String fullMethodSignature) {
     this.fullMethodSignature = fullMethodSignature;
-  }
-  public String getTestFramework() {
-    return testFramework;
-  }
-
-  public void setTestFramework(String testFramework) {
-    this.testFramework = testFramework;
   }
 
   public String getDeclaringType() {

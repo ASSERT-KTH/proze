@@ -26,15 +26,12 @@ public class ParseAnalysisReport {
             Gson gson = new Gson();
             Type listOfStrings = new TypeToken<ArrayList<String>>() {
             }.getType();
-
             JsonArray methodArray = gson.fromJson(reader, JsonArray.class);
             for (JsonElement method : methodArray) {
                 TargetMethod thisMethod = new TargetMethod();
                 // fully.qualified.name(param1,param2)
                 thisMethod.setFullMethodSignature(sanitizeFullMethodSignature(
                         method.getAsJsonObject().get("fullMethodSignature").getAsString()));
-                // test framework - testng or junit
-                thisMethod.setTestFramework(method.getAsJsonObject().get("testFramework").getAsString());
 
                 thisMethod.setDeclaringType(method.getAsJsonObject().get("declaringType").getAsString());
                 thisMethod.setMethodName(method.getAsJsonObject().get("methodName").getAsString());

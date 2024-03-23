@@ -16,7 +16,6 @@ def prepare_method_wise_report(test_methods):
   method_list = []
   for m in methods_called:
     data = {"fullMethodSignature": "",
-            "testFramework": "",
             "declaringType": "",
             "methodName": "",
             "parameters": "",
@@ -30,7 +29,6 @@ def prepare_method_wise_report(test_methods):
           data["declaringType"] = this_invocation["methodDeclaringType"]
           data["methodName"] = this_invocation["methodName"]
           data["parameters"] = this_invocation["methodParameterTypes"]
-          data["testFramework"] = this_test_method["testFramework"]
           data["invokedByTests"].append(str(this_test_method["testClassName"] + "." + this_test_method["testName"]))
     method_list.append(data)
   return method_list
