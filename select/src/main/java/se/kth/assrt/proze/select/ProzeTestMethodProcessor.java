@@ -109,7 +109,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
     private List<InvocationWithPrimitiveParams> getInvocationsWithPrimitiveParameters(CtMethod<?> testMethod) {
         List<InvocationWithPrimitiveParams> invocationsWithPrimitiveParams = new LinkedList<>();
-        if (methodIsNotEmpty(testMethod) & !isAlreadyParameterized(testMethod)) {
+        if (methodIsNotEmpty(testMethod)) {
             List<CtStatement> statements = testMethod.getBody().getStatements();
             for (CtStatement statement : statements) {
                 invocationsWithPrimitiveParams.addAll(getMethodInvocationsWithPrimitiveParams(statement));
@@ -130,7 +130,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     @Override
     public void process(CtMethod<?> method) {
         if (method.isPublic()
-                & methodHasTestAnnotation(method)) {
+                & methodHasTestAnnotation(method) & !isAlreadyParameterized(method)) {
             List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
                     getInvocationsWithPrimitiveParameters(method);
             ProzeTestMethod testMethod = new ProzeTestMethod(

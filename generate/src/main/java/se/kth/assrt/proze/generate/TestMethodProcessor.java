@@ -108,7 +108,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         // body
         CtBlock<?> methodBody = factory.createBlock();
         StringBuilder arguments = buildArguments(currentTargetMethod.getUnionProdAndTestArgs(),
-                "new java.lang.Object[][]{", "}");
+                "new java.lang.Object[]{", "}");
         methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
                 "return new java.lang.Object[][]{\n%s\n}",
                 arguments)));
