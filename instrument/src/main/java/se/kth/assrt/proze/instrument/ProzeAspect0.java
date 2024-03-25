@@ -56,8 +56,18 @@ public class ProzeAspect0 {
     }
 
     private static boolean isCalledByTest() {
-      return Arrays.stream(Thread.currentThread().getStackTrace()).limit(10).anyMatch(e ->
-              testMethodsThatCallThisMethod.contains(e.getClassName() + "." + e.getMethodName()));
+      for (int i = 0; i < Thread.currentThread().getStackTrace().length; i++) {
+        StackTraceElement currentStackTraceElement = Thread.currentThread().getStackTrace()[i];
+        if ((currentStackTraceElement.getClassName() + "." + currentStackTraceElement.getMethodName())
+                .equals(TargetMethodAdvice.class.getAnnotation(Pointcut.class).className() + "."
+                        + TargetMethodAdvice.class.getAnnotation(Pointcut.class).methodName())) {
+          StackTraceElement nextStackTraceElement = Thread.currentThread().getStackTrace()[i+1];
+          if (testMethodsThatCallThisMethod.contains(
+                  nextStackTraceElement.getClassName() + "." + nextStackTraceElement.getMethodName()))
+            return true;
+        }
+      }
+      return false;
     }
 
     @IsEnabled
