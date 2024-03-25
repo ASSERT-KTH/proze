@@ -48,10 +48,6 @@ def analyze_data():
     # only in prod
     only_prod = list(set(prod_data["parametersAsString"]) - set(test_data["parametersAsString"]))
     print("[INFO] Parameters only in production, but not in test executions:", len(only_prod))
-    if len(only_prod) == 0:
-      print("[INFO] No distinct parameters in production, SKIPPING THIS METHOD")
-      print("=================================================================================================")
-      continue
     test_args = []
     # map parameters to test that use it
     for index, row in test_data.iterrows():
