@@ -8,10 +8,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ParseAnalysisReport {
   static String sanitizeFullMethodSignature(String fullMethodSignature) {
@@ -44,16 +41,12 @@ public class ParseAnalysisReport {
         List<String> unionProdAndTestArgs = gson.fromJson(method.getAsJsonObject()
                 .get("unionProdAndTestArgs"), listOfStrings);
         thisMethod.setUnionProdAndTestArgs(unionProdAndTestArgs);
-        // map of test and arguments for this method
-        List<Map<String, String>> testArgs = new ArrayList<>();
-        JsonArray testArgArray = method.getAsJsonObject().get("testArgs").getAsJsonArray();
-        for (int i = 0; i < testArgArray.size(); i++) {
-          Map<String, String> testAndArg = new LinkedHashMap<>();
-          testAndArg.put(testArgArray.get(i).getAsJsonObject().get("test").getAsString(),
-                  testArgArray.get(i).getAsJsonObject().get("arguments").getAsString());
-          testArgs.add(testAndArg);
-        }
-        thisMethod.setTestArgs(testArgs);
+        // set of tests that directly invoke this target method
+        Type setType = new TypeToken<LinkedHashSet<String>>(){}.getType();
+        Set<String> tests = gson.fromJson(
+                method.getAsJsonObject().get("invokedByTests").getAsJsonArray(), setType);
+        thisMethod.setTestsThatInvokeDirectly(tests);
+
         targetMethods.add(thisMethod);
       }
     } catch (Exception e) {

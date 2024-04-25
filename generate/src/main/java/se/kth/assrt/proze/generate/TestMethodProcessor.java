@@ -46,7 +46,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       if (currentTargetMethod.getDeclaringType()
               .equals(constructorCall.getExecutable().getDeclaringType().getQualifiedName())
               & currentTargetMethod.getParameters().toString().equals(
-                      constructorCall.getExecutable().getParameters().toString())) {
+              constructorCall.getExecutable().getParameters().toString())) {
         List<CtExpression<?>> params = new ArrayList<>();
         for (int i = 0; i < currentTargetMethod.getParameters().size(); i++) {
           params.add(generatedClass.getFactory()
@@ -182,18 +182,13 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   private List<CtType<?>> copyTestClassesWithInvokingTests(CtMethod<?> method) {
     List<CtType<?>> generatedTestClasses = new ArrayList<>();
     LinkedHashMap<String, Set<String>> testClassMethodMap = new LinkedHashMap<>();
-    List<Map<String, String>> testArgs = currentTargetMethod.getTestArgs();
-    for (Map<String, String> testArgMap : testArgs) {
-      // extract fqn of test class from testArgMap
-      Object[] testClassMethodNames = testArgMap.keySet().toArray();
-      for (Object testClassMethodName : testClassMethodNames) {
-        String testClassName = testClassMethodName.toString()
-                .replaceFirst("(.+)\\..+\\(.+\\)", "$1");
-        String testMethodName = testClassMethodName.toString()
-                .replaceFirst("(.+)\\.(.+)\\(.+\\)", "$2");
-        testClassMethodMap.computeIfAbsent(testClassName,
-                v -> new LinkedHashSet<>()).add(testMethodName);
-      }
+    Set<String> testsThatInvokeDirectly = currentTargetMethod.getTestsThatInvokeDirectly();
+    for (String test : testsThatInvokeDirectly) {
+      // extract fqn of test class from test method signature
+      String testClassName = test.replaceFirst("(.+)\\.([^.]*)$", "$1");
+      String testMethodName = test.replaceFirst("(.+)\\.([^.]*)$", "$2");
+      testClassMethodMap.computeIfAbsent(testClassName,
+              v -> new LinkedHashSet<>()).add(testMethodName);
     }
     // maybe invoked in multiple tests within same test class: we will make one copy for each method
     logger.info("method invoked within " +
@@ -208,10 +203,10 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
           CtType<?> thisTestClass = foundTestClass.get();
           String classNameSuffix = "_" + method.getDeclaringType().getSimpleName()
                   + "_" + (currentTargetMethod.getMethodName().equals("init") ? "init" : method.getSignature())
-                          .replaceAll("\\(", "_")
-                          .replaceAll("\\.", "_")
-                          .replaceAll(",", "_")
-                          .replaceAll("\\)", "")
+                  .replaceAll("\\(", "_")
+                  .replaceAll("\\.", "_")
+                  .replaceAll(",", "_")
+                  .replaceAll("\\)", "")
                   + "_" + testMethod;
           CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
                   testMethod, classNameSuffix);

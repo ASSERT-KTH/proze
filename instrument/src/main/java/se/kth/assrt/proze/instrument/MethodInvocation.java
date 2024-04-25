@@ -1,16 +1,11 @@
 package se.kth.assrt.proze.instrument;
 
 public class MethodInvocation {
-  int invocationCount;
   Object parameters;
   boolean calledByInvokingTest;
   String stackTrace;
 
   public MethodInvocation() {
-  }
-
-  public void setInvocationCount(int invocationCount) {
-    this.invocationCount = invocationCount;
   }
 
   public void setParameters(Object[] parameters, String[] parameterTypes) {
