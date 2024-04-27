@@ -55,23 +55,6 @@ public class ProzeAspect0 {
       }
     }
 
-    private static boolean isCalledByTest() {
-      for (int i = 0; i < Thread.currentThread().getStackTrace().length; i++) {
-        StackTraceElement currentStackTraceElement = Thread.currentThread().getStackTrace()[i];
-        if ((currentStackTraceElement.getClassName() + "." + currentStackTraceElement.getMethodName())
-                .equals(classNameMethodName)) {
-          StackTraceElement nextStackTraceElement = Thread.currentThread().getStackTrace()[i + 1];
-          if (testMethodsThatCallThisMethod.contains(
-                  nextStackTraceElement.getClassName() + "." + nextStackTraceElement.getMethodName())) {
-            methodInvocation.setCalledByInvokingTest(true);
-            return true;
-          }
-        }
-      }
-      methodInvocation.setCalledByInvokingTest(false);
-      return false;
-    }
-
     @IsEnabled
     public static boolean enableProfileCollection() {
       // logger.info(String.format("ProzeAspect %s: %s", COUNT, classNameMethodName));
