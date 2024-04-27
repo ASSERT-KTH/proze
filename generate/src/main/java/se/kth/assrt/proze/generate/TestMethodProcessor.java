@@ -147,7 +147,8 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     // remove other @Test methods, not other methods such as @BeforeTest (testng)
     for (CtMethod<?> testMethod : copyOfTestClass.getMethods().stream()
             .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains(".Test")))
+                    .anyMatch(a -> a.toString().contains(".Test") ||
+                            a.toString().contains(".ParameterizedTest")))
             .collect(Collectors.toList())) {
       if (!testMethod.getSimpleName().equals(testMethodToCopy))
         copyOfTestClass.removeMethod(testMethod);
@@ -243,7 +244,8 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         }
       }
       // for method invocations
-      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
+      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)
+              && !method.isAbstract()) {
         currentTargetMethod = targetMethod;
         logger.info("Working on method " + fullMethodSignature);
         List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
