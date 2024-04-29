@@ -108,4 +108,16 @@ public class MethodProcessorTest {
     assertEquals(List.of("java.lang.String", "java.lang.String", "int"),
             invocationWithPrimitiveParams.get(0).getMethodParameterTypes());
   }
+
+  @Test
+  public void testThatTestWithoutAssertionsIsNotSelected() {
+    assertTrue(prozeTestMethodProcessor.getTestMethods().stream()
+            .noneMatch(m -> m.getTestName().equals("testWithoutAssertions")));
+  }
+
+  @Test
+  public void testThatParameterizedTestIsNotSelected() {
+    assertTrue(prozeTestMethodProcessor.getTestMethods().stream()
+            .noneMatch(m -> m.getTestName().equals("testAParameterizedTest")));
+  }
 }

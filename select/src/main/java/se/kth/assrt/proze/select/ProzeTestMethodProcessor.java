@@ -20,7 +20,12 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
   private boolean methodHasTestAnnotation(CtMethod<?> method) {
     return (method.getAnnotations().stream()
-            .anyMatch(a -> a.toString().contains("Test")));
+            .anyMatch(a -> a.toString().contains(".Test")));
+  }
+
+  private boolean methodHasAtLeastOneAssertion(CtMethod<?> method) {
+    return methodIsNotEmpty(method) && method.getBody().getStatements().stream()
+            .anyMatch(s -> s.toString().toLowerCase().contains("assert"));
   }
 
   private boolean areParametersPrimitivesOrStrings(CtAbstractInvocation<?> invocation) {
@@ -103,12 +108,10 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
   private List<InvocationWithPrimitiveParams> getInvocationsWithPrimitiveParameters(CtMethod<?> testMethod) {
     List<InvocationWithPrimitiveParams> invocationsWithPrimitiveParams = new LinkedList<>();
-    if (methodIsNotEmpty(testMethod)) {
-      List<CtStatement> statements = testMethod.getBody().getStatements();
-      for (CtStatement statement : statements) {
-        invocationsWithPrimitiveParams.addAll(getMethodInvocationsWithPrimitiveParams(statement));
-        invocationsWithPrimitiveParams.addAll(getConstructorInvocationsWithPrimitiveParams(statement));
-      }
+    List<CtStatement> statements = testMethod.getBody().getStatements();
+    for (CtStatement statement : statements) {
+      invocationsWithPrimitiveParams.addAll(getMethodInvocationsWithPrimitiveParams(statement));
+      invocationsWithPrimitiveParams.addAll(getConstructorInvocationsWithPrimitiveParams(statement));
     }
     return invocationsWithPrimitiveParams;
   }
@@ -124,7 +127,8 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   @Override
   public void process(CtMethod<?> method) {
     if (method.isPublic()
-            & methodHasTestAnnotation(method)) {
+            & methodHasTestAnnotation(method)
+            & methodHasAtLeastOneAssertion(method)) {
       List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
               getInvocationsWithPrimitiveParameters(method);
       ProzeTestMethod testMethod = new ProzeTestMethod(
