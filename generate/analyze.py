@@ -53,7 +53,7 @@ def prepare_analysis_report(union_result, method_wise_report):
     data["numTestArgs"] = union_result[i]["numUniqueArgumentsTest"]
     data["numProdArgs"] = union_result[i]["numUniqueArgumentsProd"]
     data["sizeUnion"] = union_result[i]["sizeUnion"]
-    data["unionProdAndTestArgs"] = union_result[i]["unionProdAndTestArgs"]
+    data["unionProdAndTestArgs"] = sorted(union_result[i]["unionProdAndTestArgs"])
     final_report.append(data)
   return final_report
 
