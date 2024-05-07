@@ -2,6 +2,6 @@ target/
 .idea/
 **/.ipynb_checkpoints/
 **/*report-*.json
-run-*-test-classes.sh
+run-*-test-*.sh
 **/output/generated/
 *.tmp

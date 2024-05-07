@@ -1,7 +1,7 @@
 package se.kth.assrt.proze.generate;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 public class TargetMethod {
   String fullMethodSignature;
@@ -10,8 +10,7 @@ public class TargetMethod {
   List<String> parameters;
   List<String> invokedByTests;
   List<String> unionProdAndTestArgs;
-  List<Map<String, String>> testArgs;
-
+  Set<String> testsThatInvokeDirectly;
 
   public String getFullMethodSignature() {
     return fullMethodSignature;
@@ -61,11 +60,11 @@ public class TargetMethod {
     this.unionProdAndTestArgs = unionProdAndTestArgs;
   }
 
-  public List<Map<String, String>> getTestArgs() {
-    return testArgs;
+  public Set<String> getTestsThatInvokeDirectly() {
+    return testsThatInvokeDirectly;
   }
 
-  public void setTestArgs(List<Map<String, String>> testArgs) {
-    this.testArgs = testArgs;
+  public void setTestsThatInvokeDirectly(Set<String> testsThatInvokeDirectly) {
+    this.testsThatInvokeDirectly = testsThatInvokeDirectly;
   }
 }

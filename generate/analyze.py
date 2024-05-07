@@ -1,75 +1,80 @@
 import glob
 import json
-import os
 import pandas as pd
 import re
 import sys
+
+def merge_prod_test_results(result_prod, result_test):
+  methods_invoked_prod = set()
+  methods_invoked_test = set()
+  for p in result_prod:
+    methods_invoked_prod.add(p["fullMethodSignature"])
+  for t in result_test:
+    methods_invoked_test.add(t["fullMethodSignature"])
+
+  # should be equal to number of methods invoked in prod
+  print("Methods invoked in both test and prod: ", len(methods_invoked_test.intersection(methods_invoked_prod)))
+
+  # should be zero
+  print("Methods invoked in prod but not test: ", len(methods_invoked_prod - methods_invoked_test))
+
+  # should be non-zero
+  print("Methods invoked in test but not prod: ", len(methods_invoked_test - methods_invoked_prod))
+
+  # assuming test execution has more invoked methods
+  merged_result = result_test
+  for m in range(len(merged_result)):
+    for p in range(len(result_prod)):
+      if merged_result[m]["fullMethodSignature"] == result_prod[p]["fullMethodSignature"]:
+        merged_result[m]["numInvocationsProd"] = result_prod[p]["numInvocationsProd"]
+        merged_result[m]["numUniqueArgumentsProd"] = result_prod[p]["numUniqueArgumentsProd"]
+        merged_result[m]["uniqueArgumentsProd"] = result_prod[p]["uniqueArgumentsProd"]
+        merged_result[m]["unionProdAndTestArgs"] = list(set(merged_result[m]["uniqueArgumentsTest"])
+                                                          .union(set(result_prod[p]["uniqueArgumentsProd"])))
+        merged_result[m]["sizeUnion"] = len(merged_result[m]["unionProdAndTestArgs"])
+        continue
+    for m in range(len(merged_result)):
+      if "numInvocationsProd" not in merged_result[m].keys():
+        merged_result[m]["numInvocationsProd"] = 0
+        merged_result[m]["numUniqueArgumentsProd"] = 0
+        merged_result[m]["uniqueArgumentsProd"] = []
+        merged_result[m]["unionProdAndTestArgs"] = merged_result[m]["uniqueArgumentsTest"]
+        merged_result[m]["sizeUnion"] = len(merged_result[m]["uniqueArgumentsTest"])
+  return merged_result
 
 def prepare_analysis_report(union_result, method_wise_report):
   final_report = []
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
-    data["numTestArgs"] = union_result[i]["numTestArgs"]
-    data["numProdArgs"] = union_result[i]["numProdArgs"]
+    data["numInvocationsProd"] = union_result[i]["numInvocationsProd"]
+    data["numInvocationsTest"] = union_result[i]["numInvocationsTest"]
+    data["totalNumInvocations"] = union_result[i]["numInvocationsProd"] + union_result[i]["numInvocationsTest"]
+    data["numTestArgs"] = union_result[i]["numUniqueArgumentsTest"]
+    data["numProdArgs"] = union_result[i]["numUniqueArgumentsProd"]
     data["sizeUnion"] = union_result[i]["sizeUnion"]
-    data["unionProdAndTestArgs"] = union_result[i]["unionProdAndTestArgs"]
-    data["testArgs"] = union_result[i]["testArgs"]
+    data["unionProdAndTestArgs"] = sorted(union_result[i]["unionProdAndTestArgs"])
     final_report.append(data)
   return final_report
 
-def add_parameters_as_string_in_df(df):
+def add_arguments_as_string_in_df(df):
   return [','.join(map(str, l)) for l in df['parameters']]
 
-def analyze_data():
+def analyze_data(data_files, source):
   result = []
-  # we care about methods that are invoked in production
-  for prod_data_file in prod_files:
-    print("[INFO] Analyzing file", prod_data_file)
-    prod_data = pd.read_json(prod_data_file)
-    # read data for same the method from test folder
-    corresponding_test_data_file = prod_data_file.replace("object-data-prod", "object-data-test")
-    if not os.path.isfile(corresponding_test_data_file):
-      continue
-    test_data = pd.read_json(corresponding_test_data_file)
-    print("[INFO] Invocations in production execution:", len(prod_data))
-    print("[INFO] Invocations in test execution:", len(test_data))
-    # remove invocations of method during test execution that are not called by test methods
-    print("[INFO] Removing invocations from test executions that are not made directly by an invoking test")
-    test_data = test_data.drop(test_data[test_data["calledByInvokingTest"] == False].index)
-    print("[INFO] Updated number of invocations in test execution:", len(test_data))
-    if len(test_data) == 0:
-      print("[INFO] No invocations made directly from invoking tests, SKIPPING THIS METHOD")
-      print("=================================================================================================")
-      continue
-    # convert parameter list to string before intersection and union
-    prod_data['parametersAsString'] = add_parameters_as_string_in_df(prod_data)
-    test_data['parametersAsString'] = add_parameters_as_string_in_df(test_data)
-    # only in prod
-    only_prod = list(set(prod_data["parametersAsString"]) - set(test_data["parametersAsString"]))
-    print("[INFO] Parameters only in production, but not in test executions:", len(only_prod))
-    test_args = []
-    # map parameters to test that use it
-    for index, row in test_data.iterrows():
-      first_ten_stack_elements = row["stackTrace"].replace("[", "").replace("]", "").split(", ")[0:10]
-      test = list(filter(lambda s: ("Test" in s), first_ten_stack_elements))
-      test_args.append({"test": test[0], "arguments": row["parametersAsString"]})
-    # only in test
-    only_test = list(set(test_data["parametersAsString"]) - set(prod_data["parametersAsString"]))
-    print("[INFO] Parameters only in test, but not in production executions:", len(only_test))
-    # intersection
-    intersection = list(set(prod_data["parametersAsString"]) & set(test_data["parametersAsString"]))
-    print("[INFO] Parameters common to both production and test executions:", len(intersection))
-    # union
-    union = list(set(prod_data["parametersAsString"]).union(set(test_data["parametersAsString"])))
-    print("[INFO] Size of union of test and production parameters:", len(union))
+  print("[INFO] Working with data in source", source)
+  for data_file in data_files:
+    print("[INFO] Analyzing file", data_file)
+    data = pd.read_json(data_file)
+    print("[INFO] Invocations in execution:", len(data))
+    # convert parameter list to string before converting to set
+    data['argumentsAsString'] = add_arguments_as_string_in_df(data)
     print("=================================================================================================")
-    full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", prod_data_file)
+    full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", data_file)
     result.append({"fullMethodSignature": full_method_signature,
-                   "testArgs": test_args, "unionProdAndTestArgs": sorted(union),
-                   "numTestArgs": len(set(test_data["parametersAsString"])),
-                   "numProdArgs": len(set(prod_data["parametersAsString"])),
-                   "sizeUnion": len(union)})
+                   "numInvocations" + source: len(data["argumentsAsString"]),
+                   "numUniqueArguments" + source: len(set(data["argumentsAsString"])),
+                   "uniqueArguments" + source: sorted(set(data["argumentsAsString"]))})
   return result
 
 def sanitize_file_to_json(data_file):
@@ -109,8 +114,16 @@ def main(argv):
     prod_files = glob.glob("/tmp/proze-object-data-prod/*.json")
     test_files = glob.glob("/tmp/proze-object-data-test/*.json")
     get_data_files_and_sanitize()
-    result = analyze_data()
-    final_report = prepare_analysis_report(result, argv[1])
+    result_prod = analyze_data(prod_files, "Prod")
+    result_test = analyze_data(test_files, "Test")
+    print("PRODUCTION")
+    print(len(result_prod))
+    print("TEST")
+    print(len(result_test))
+    union_result = merge_prod_test_results(result_prod, result_test)
+    print("UNION")
+    print(len(union_result))
+    final_report = prepare_analysis_report(union_result, argv[1])
     output_report_file = "./analyzed-" + argv[1].split("/")[-1]
     with open(output_report_file, "w") as outfile:
       json.dump(final_report, outfile, indent = 2)
