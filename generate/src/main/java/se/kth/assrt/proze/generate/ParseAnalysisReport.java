@@ -41,12 +41,19 @@ public class ParseAnalysisReport {
         List<String> unionProdAndTestArgs = gson.fromJson(method.getAsJsonObject()
                 .get("unionProdAndTestArgs"), listOfStrings);
         thisMethod.setUnionProdAndTestArgs(unionProdAndTestArgs);
+        // if we only have one argument for this method, discard
+        if (thisMethod.getUnionProdAndTestArgs().size() == 1)
+          continue;
         // set of tests that directly invoke this target method
         Type setType = new TypeToken<LinkedHashSet<String>>(){}.getType();
         Set<String> tests = gson.fromJson(
                 method.getAsJsonObject().get("invokedByTests").getAsJsonArray(), setType);
         thisMethod.setTestsThatInvokeDirectly(tests);
-
+        // get number of invocations in production
+        int productionInvocations = method.getAsJsonObject().get("numInvocationsProd").getAsInt();
+        // we want different sources of information
+        if (thisMethod.getTestsThatInvokeDirectly().size() == 1 && productionInvocations == 0)
+          continue;
         targetMethods.add(thisMethod);
       }
     } catch (Exception e) {
