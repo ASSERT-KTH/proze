@@ -7,10 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.CtModel;
-import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtConstructorCall;
-import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.*;
 import spoon.reflect.declaration.*;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.CtTypeReference;
@@ -129,6 +126,48 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return generatorMethod;
   }
 
+  public CtType<?> generateOneParamTestPerAssertion(CtType<?> generatedClass) {
+    for (CtMethod<?> method : generatedClass.getMethods()) {
+      if (method.getAnnotations().stream()
+              .anyMatch(a -> a.toString().contains("ParameterizedTest"))) {
+        // get the number of assert statements
+        List<CtStatement> assertStatements = method.getBody().getStatements()
+                .stream().filter(s -> s.toString().contains("assert"))
+                .collect(Collectors.toList());
+        logger.info("Found " + assertStatements.size() + " assertion statements");
+        // if fewer than 2 assertions, nothing to do
+        if (assertStatements.size() < 2)
+          return generatedClass;
+        // make a copy of the test for each assert statement
+        for (int i = 0; i < assertStatements.size(); i++) {
+          CtMethod<?> testCopy = generatedClass.getFactory().createMethod();
+          testCopy.setType(method.getType());
+          testCopy.setAnnotations(method.getAnnotations());
+          testCopy.setSimpleName(method.getSimpleName() + "_" + (i + 1));
+          testCopy.setThrownTypes(method.getThrownTypes());
+          testCopy.setModifiers(method.getModifiers());
+          testCopy.setParameters(method.getParameters());
+
+          CtBlock<?> methodBody = generatedClass.getFactory().createBlock();
+          // copy each statement, comment out other assert statements
+          for (CtStatement statementToCopy : method.getBody().getStatements()) {
+            if (statementToCopy.toString().contains("assert")
+                    && !statementToCopy.toString().equals(assertStatements.get(i).toString())) {
+              CtStatement commentedOutStatement = generatedClass.getFactory()
+                      .createCodeSnippetStatement(String.format("// %s", statementToCopy));
+              methodBody.addStatement(commentedOutStatement);
+            } else {
+              methodBody.addStatement(statementToCopy);
+            }
+          }
+          testCopy.setBody(methodBody);
+          generatedClass.addMethod(testCopy);
+        }
+      }
+    }
+    return generatedClass;
+  }
+
   public CtType<?> copyTestClassAndPrepareTestMethod(CtType<?> testClassToCopy,
                                                      String testMethodToCopy,
                                                      String classNameSuffix) {
@@ -211,6 +250,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                   + "_" + testMethod;
           CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
                   testMethod, classNameSuffix);
+          newClass = generateOneParamTestPerAssertion(newClass);
           logger.info("Generated class " + newClass.getQualifiedName());
           generatedTestClasses.add(newClass);
         }
