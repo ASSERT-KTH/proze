@@ -4,6 +4,12 @@ import pandas as pd
 import re
 import sys
 
+
+def serialize_sets(obj):
+  if isinstance(obj, set):
+    return list(obj)
+  return obj
+
 def merge_prod_test_results(result_prod, result_test):
   methods_invoked_prod = set()
   methods_invoked_test = set()
@@ -47,6 +53,7 @@ def prepare_analysis_report(union_result, method_wise_report):
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
+    data["originalTestArgs"] = union_result[i]["originalTestArgs"]
     data["numInvocationsProd"] = union_result[i]["numInvocationsProd"]
     data["numInvocationsTest"] = union_result[i]["numInvocationsTest"]
     data["totalNumInvocations"] = union_result[i]["numInvocationsProd"] + union_result[i]["numInvocationsTest"]
@@ -71,10 +78,22 @@ def analyze_data(data_files, source):
     data['argumentsAsString'] = add_arguments_as_string_in_df(data)
     print("=================================================================================================")
     full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", data_file)
+    original_test_args = {}
+    if (source == "Test"):
+      for i in range(len(data)):
+        if (data["calledByInvokingTest"][i]):
+          print("Called by invoking test", data["invokingTest"][i])
+          if (data["invokingTest"][i] in original_test_args.keys()):
+            print("already exists in dict")
+            original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
+          else:
+            original_test_args[data["invokingTest"][i]] = set(data["argumentsAsString"][i])
+            print(original_test_args)
     result.append({"fullMethodSignature": full_method_signature,
                    "numInvocations" + source: len(data["argumentsAsString"]),
                    "numUniqueArguments" + source: len(set(data["argumentsAsString"])),
-                   "uniqueArguments" + source: sorted(set(data["argumentsAsString"]))})
+                   "uniqueArguments" + source: sorted(set(data["argumentsAsString"])),
+                   "originalTestArgs": original_test_args})
   return result
 
 def sanitize_file_to_json(data_file):
@@ -126,7 +145,7 @@ def main(argv):
     final_report = prepare_analysis_report(union_result, argv[1])
     output_report_file = "./analyzed-" + argv[1].split("/")[-1]
     with open(output_report_file, "w") as outfile:
-      json.dump(final_report, outfile, indent = 2)
+      json.dump(final_report, outfile, indent = 2, default=serialize_sets)
     print("Generated analysis report for these", len(final_report), "methods:", output_report_file)
   except Exception as e:
     print("USAGE: python analyze.py </path/to/method/wise/report>.json")

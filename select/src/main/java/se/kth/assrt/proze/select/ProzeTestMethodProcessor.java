@@ -139,7 +139,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       testMethods.add(testMethod);
       // If there are candidate invocations within this test, get test class name
       if (!invocationWithPrimitiveParams.isEmpty()) {
-        setOfTestClasses.add(method.getDeclaringType().getSimpleName());
+        setOfTestClasses.add(method.getDeclaringType().getSimpleName() + "#" + method.getSimpleName());
       }
     }
   }
