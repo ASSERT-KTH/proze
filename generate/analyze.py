@@ -82,13 +82,10 @@ def analyze_data(data_files, source):
     if (source == "Test"):
       for i in range(len(data)):
         if (data["calledByInvokingTest"][i]):
-          print("Called by invoking test", data["invokingTest"][i])
           if (data["invokingTest"][i] in original_test_args.keys()):
-            print("already exists in dict")
             original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
           else:
             original_test_args[data["invokingTest"][i]] = set(data["argumentsAsString"][i])
-            print(original_test_args)
     result.append({"fullMethodSignature": full_method_signature,
                    "numInvocations" + source: len(data["argumentsAsString"]),
                    "numUniqueArguments" + source: len(set(data["argumentsAsString"])),
