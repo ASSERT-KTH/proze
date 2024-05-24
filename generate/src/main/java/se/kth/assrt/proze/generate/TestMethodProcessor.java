@@ -1,5 +1,7 @@
 package se.kth.assrt.proze.generate;
 
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -151,6 +153,12 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
           CtBlock<?> methodBody = generatedClass.getFactory().createBlock();
           // copy each statement, comment out other assert statements
           for (CtStatement statementToCopy : method.getBody().getStatements()) {
+            List<CtElement> comments = statementToCopy.getDirectChildren().stream()
+                    .filter(e -> e.getRoleInParent().toString().equals("comment"))
+                    .collect(Collectors.toList());
+            for (CtElement comment : comments) {
+              statementToCopy.removeComment((CtComment) comment);
+            }
             if (statementToCopy.toString().contains("assert")
                     && !statementToCopy.toString().equals(assertStatements.get(i).toString())) {
               CtStatement commentedOutStatement = generatedClass.getFactory()
@@ -195,6 +203,32 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     CtMethod<?> targetTestMethod = copyOfTestClass.getMethodsByName(
             testMethodToCopy).get(0);
     Factory factory = copyOfTestClass.getFactory();
+
+    // BeforeClass => BeforeAll
+    for (CtMethod<?> beforeMethod : copyOfTestClass.getMethods().stream()
+            .filter(m -> m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().endsWith(".BeforeClass")))
+            .collect(Collectors.toList())) {
+      CtAnnotation<?> beforeClass = beforeMethod.getAnnotations().stream()
+              .filter(a -> a.toString().endsWith(".BeforeClass")).findFirst().get();
+      beforeMethod.removeAnnotation(beforeClass);
+      beforeMethod.addAnnotation(factory.createAnnotation(
+              factory.createCtTypeReference(BeforeAll.class)));
+      beforeMethod.addModifier(ModifierKind.STATIC);
+    }
+
+    // Before => BeforeEach
+    for (CtMethod<?> beforeMethod : copyOfTestClass.getMethods().stream()
+            .filter(m -> m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().endsWith(".Before")))
+            .collect(Collectors.toList())) {
+      CtAnnotation<?> before = beforeMethod.getAnnotations().stream()
+              .filter(a -> a.toString().endsWith(".Before")).findFirst().get();
+      beforeMethod.removeAnnotation(before);
+      beforeMethod.addAnnotation(factory.createAnnotation(
+              factory.createCtTypeReference(BeforeEach.class)));
+    }
+
     // remove @Test
     CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
             .filter(a -> a.toString().contains("Test")).findFirst().get();
@@ -247,6 +281,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                   .replaceAll("\\.", "_")
                   .replaceAll(",", "_")
                   .replaceAll("\\)", "")
+                  + "_" + thisTestClass.getSimpleName()
                   + "_" + testMethod;
           CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
                   testMethod, classNameSuffix);
