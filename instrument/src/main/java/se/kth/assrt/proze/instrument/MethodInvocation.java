@@ -2,6 +2,8 @@ package se.kth.assrt.proze.instrument;
 
 public class MethodInvocation {
   Object parameters;
+  boolean calledByInvokingTest;
+  String invokingTest = "";
   String stackTrace;
 
   public MethodInvocation() {
@@ -28,5 +30,13 @@ public class MethodInvocation {
 
   public void setStackTrace(String stackTrace) {
     this.stackTrace = stackTrace;
+  }
+
+  public void setCalledByInvokingTest(boolean calledByInvokingTest) {
+    this.calledByInvokingTest = calledByInvokingTest;
+  }
+
+  public void setInvokingTest(String invokingTest) {
+    this.invokingTest = invokingTest;
   }
 }

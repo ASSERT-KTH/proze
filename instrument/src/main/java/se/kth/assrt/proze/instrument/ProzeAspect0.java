@@ -8,6 +8,7 @@ import org.glowroot.agent.plugin.api.weaving.*;
 import java.io.*;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ProzeAspect0 {
   static final Gson gson = new GsonBuilder()
@@ -68,7 +69,22 @@ public class ProzeAspect0 {
       String[] parameterTypes = TargetMethodAdvice.class.getAnnotation(Pointcut.class)
               .methodParameterTypes();
       methodInvocation.setParameters((Object[]) parameterObjects, parameterTypes);
-      methodInvocation.setStackTrace(Arrays.toString(Thread.currentThread().getStackTrace()));
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      String stackTrace = Arrays.toString(stackTraceElements);
+      boolean calledByInvokingTest = testMethodsThatCallThisMethod.stream().anyMatch(stackTrace::contains);
+      methodInvocation.setCalledByInvokingTest(calledByInvokingTest);
+      String invokingTest = "";
+      if (calledByInvokingTest) {
+        for (StackTraceElement e : stackTraceElements) {
+          if (testMethodsThatCallThisMethod.stream()
+                  .anyMatch(t -> t.equals(e.getClassName() + "." + e.getMethodName()))) {
+            invokingTest = e.getClassName() + "." + e.getMethodName();
+            break;
+          }
+        }
+      }
+      methodInvocation.setInvokingTest(invokingTest);
+      methodInvocation.setStackTrace(stackTrace);
       return null;
     }
 
