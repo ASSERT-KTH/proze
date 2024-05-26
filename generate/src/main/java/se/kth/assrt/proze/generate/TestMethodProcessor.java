@@ -1,5 +1,7 @@
 package se.kth.assrt.proze.generate;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -176,6 +178,29 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return generatedClass;
   }
 
+  public void updateBeforeAfterAnnotations(CtType<?> copyOfTestClass) {
+    Map<String, Class<?>> annotations = Map.of(
+            ".BeforeClass", BeforeAll.class,
+            ".Before", BeforeEach.class,
+            ".AfterClass", AfterAll.class,
+            ".After", AfterEach.class);
+    Factory factory = copyOfTestClass.getFactory();
+    for (Map.Entry<String, Class<?>> annotationMap : annotations.entrySet()) {
+      for (CtMethod<?> annotatedMethod : copyOfTestClass.getMethods().stream()
+              .filter(m -> m.getAnnotations().stream()
+                      .anyMatch(a -> a.toString().endsWith(annotationMap.getKey())))
+              .collect(Collectors.toList())) {
+        CtAnnotation<?> beforeClass = annotatedMethod.getAnnotations().stream()
+                .filter(a -> a.toString().endsWith(annotationMap.getKey())).findFirst().get();
+        annotatedMethod.removeAnnotation(beforeClass);
+        annotatedMethod.addAnnotation(factory.createAnnotation(
+                factory.createCtTypeReference(annotationMap.getValue())));
+        if (annotationMap.getKey().endsWith("Class"))
+          annotatedMethod.addModifier(ModifierKind.STATIC);
+      }
+    }
+  }
+
   public CtType<?> copyTestClassAndPrepareTestMethod(CtType<?> testClassToCopy,
                                                      String testMethodToCopy,
                                                      String classNameSuffix) {
@@ -205,29 +230,10 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     Factory factory = copyOfTestClass.getFactory();
 
     // BeforeClass => BeforeAll
-    for (CtMethod<?> beforeMethod : copyOfTestClass.getMethods().stream()
-            .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().endsWith(".BeforeClass")))
-            .collect(Collectors.toList())) {
-      CtAnnotation<?> beforeClass = beforeMethod.getAnnotations().stream()
-              .filter(a -> a.toString().endsWith(".BeforeClass")).findFirst().get();
-      beforeMethod.removeAnnotation(beforeClass);
-      beforeMethod.addAnnotation(factory.createAnnotation(
-              factory.createCtTypeReference(BeforeAll.class)));
-      beforeMethod.addModifier(ModifierKind.STATIC);
-    }
-
     // Before => BeforeEach
-    for (CtMethod<?> beforeMethod : copyOfTestClass.getMethods().stream()
-            .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().endsWith(".Before")))
-            .collect(Collectors.toList())) {
-      CtAnnotation<?> before = beforeMethod.getAnnotations().stream()
-              .filter(a -> a.toString().endsWith(".Before")).findFirst().get();
-      beforeMethod.removeAnnotation(before);
-      beforeMethod.addAnnotation(factory.createAnnotation(
-              factory.createCtTypeReference(BeforeEach.class)));
-    }
+    // AfterClass => AfterAll
+    // After => AfterEach
+    updateBeforeAfterAnnotations(copyOfTestClass);
 
     // remove @Test
     CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
