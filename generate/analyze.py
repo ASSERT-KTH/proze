@@ -61,7 +61,11 @@ def prepare_analysis_report(union_result, method_wise_report):
     data["numProdArgs"] = union_result[i]["numUniqueArgumentsProd"]
     data["sizeUnion"] = union_result[i]["sizeUnion"]
     data["unionProdAndTestArgs"] = sorted(union_result[i]["unionProdAndTestArgs"])
-    final_report.append(data)
+    # we want to parameterize only if we have more than one argument in the union
+    if len(data["unionProdAndTestArgs"]) > 1:
+      # we want multiple sources of info for the arguments
+      if data["numProdArgs"] > 0 or (len(set(data["invokedByTests"])) > 1):
+        final_report.append(data)
   return final_report
 
 def add_arguments_as_string_in_df(df):
