@@ -62,7 +62,7 @@ def prepare_analysis_report(union_result, method_wise_report):
     data["sizeUnion"] = union_result[i]["sizeUnion"]
     data["unionProdAndTestArgs"] = sorted(union_result[i]["unionProdAndTestArgs"])
     # we want to parameterize only if we have more than one argument in the union
-    if len(data["unionProdAndTestArgs"]) > 1:
+    if data["sizeUnion"] > 1:
       # we want multiple sources of info for the arguments
       if data["numProdArgs"] > 0 or (len(set(data["invokedByTests"])) > 1):
         final_report.append(data)

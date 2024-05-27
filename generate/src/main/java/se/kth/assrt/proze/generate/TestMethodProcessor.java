@@ -325,8 +325,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         }
       }
       // for method invocations
-      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)
-              && !method.isAbstract()) {
+      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
         currentTargetMethod = targetMethod;
         logger.info("Working on method " + fullMethodSignature);
         List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
