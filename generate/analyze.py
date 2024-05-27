@@ -99,7 +99,8 @@ def analyze_data(data_files, source):
           if (data["invokingTest"][i] in original_test_args.keys()):
             original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
           else:
-            original_test_args[data["invokingTest"][i]] = set(data["argumentsAsString"][i])
+            original_test_args[data["invokingTest"][i]] = set()
+            original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
 
     result.append({"fullMethodSignature": full_method_signature,
                    "numInvocations" + source: len(data["argumentsAsString"]),

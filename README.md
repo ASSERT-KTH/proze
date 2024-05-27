@@ -22,7 +22,7 @@
   - B. `python3 instrument.py /path/to/method/wise/report.json original`
     - This captures method arguments only if method is directly invoked by an invoking test (no limit on size)
 
-4.`mvn clean install`
+4. `mvn clean install`
   - This generates `target/instrument-version-jar-with-dependencies.jar`
 
 5. (Skip this step if Glowroot downloaded already) Download Glowroot, create a directory called `plugins` in the directory that contains `glowroot.jar`
