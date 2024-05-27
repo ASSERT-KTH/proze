@@ -44,4 +44,8 @@ public class MethodInvocation {
   public void setMethodTestDistance(int distance) {
     this.methodTestDistance = distance;
   }
+
+  public boolean isCalledByInvokingTest() {
+    return calledByInvokingTest;
+  }
 }

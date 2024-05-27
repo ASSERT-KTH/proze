@@ -1,5 +1,6 @@
 import glob
 import json
+import os
 import pandas as pd
 import re
 import sys
@@ -82,6 +83,15 @@ def analyze_data(data_files, source):
     data['argumentsAsString'] = add_arguments_as_string_in_df(data)
     print("=================================================================================================")
     full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", data_file)
+    # merge original arguments from tests that directly invoke method
+    if (source == "Test"):
+      corresponding_original_test_file = data_file.replace("proze-object-data-test", "proze-object-data-original")
+      if os.path.isfile(corresponding_original_test_file):
+        print("Merging original test arguments for", full_method_signature)
+        original_test_data = pd.read_json(corresponding_original_test_file)
+        original_test_data['argumentsAsString'] = add_arguments_as_string_in_df(original_test_data)
+        data = pd.concat([data, original_test_data], ignore_index=True, sort=False)
+
     original_test_args = {}
     if (source == "Test"):
       for i in range(len(data)):
@@ -90,6 +100,7 @@ def analyze_data(data_files, source):
             original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
           else:
             original_test_args[data["invokingTest"][i]] = set(data["argumentsAsString"][i])
+
     result.append({"fullMethodSignature": full_method_signature,
                    "numInvocations" + source: len(data["argumentsAsString"]),
                    "numUniqueArguments" + source: len(set(data["argumentsAsString"])),
@@ -120,19 +131,23 @@ def sanitize_file_to_json(data_file):
 def get_data_files_and_sanitize():
   print("[INFO] Found", len(prod_files), "file(s) with production data")
   print("[INFO] Found", len(test_files), "file(s) with test data")
+  print("[INFO] Found", len(original_test_files), "file(s) with test data with original args")
   for p in prod_files:
     sanitize_file_to_json(p)
   for t in test_files:
     sanitize_file_to_json(t)
+  for o in original_test_files:
+    sanitize_file_to_json(o)
   print("=================================================================================================")
 
 def main(argv):
   try:
     if len(argv) < 2:
       raise Exception("method-wise-report not provided")
-    global prod_files, test_files
+    global prod_files, test_files, original_test_files
     prod_files = glob.glob("/tmp/proze-object-data-prod/*.json")
     test_files = glob.glob("/tmp/proze-object-data-test/*.json")
+    original_test_files = glob.glob("/tmp/proze-object-data-original/*.json")
     get_data_files_and_sanitize()
     result_prod = analyze_data(prod_files, "Prod")
     result_test = analyze_data(test_files, "Test")

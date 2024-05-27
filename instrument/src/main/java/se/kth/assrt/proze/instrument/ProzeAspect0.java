@@ -22,6 +22,7 @@ public class ProzeAspect0 {
           methodParameterTypes = {"param1", "param2"},
           timerName = "Timer - name")
   public static class TargetMethodAdvice implements AdviceTemplate {
+    private static final boolean saveDataForOriginalTestsOnly = false;
     private static final int COUNT = 0;
     private static Logger logger = Logger.getLogger(TargetMethodAdvice.class);
     private static final String methodParamTypesString = String.join(",",
@@ -60,8 +61,12 @@ public class ProzeAspect0 {
     public static boolean enableProfileCollection() {
       // logger.info(String.format("ProzeAspect %s: %s", COUNT, classNameMethodName));
       AdviceTemplate.setup();
-      // Limit data collection to 2MB
-      return new File(fileToSerializeIn).length() < 2000000L;
+      // Save arguments only if method directly invoked by one of the invoking tests
+      if (saveDataForOriginalTestsOnly) {
+        return true;
+      }
+      // Otherwise limit data collection to 3MB
+      return new File(fileToSerializeIn).length() < 3000000L;
     }
 
     @OnBefore
@@ -109,7 +114,11 @@ public class ProzeAspect0 {
 
     @OnReturn
     public static void onReturn() {
-      writeObjectToFile(methodInvocation);
+      if (saveDataForOriginalTestsOnly) {
+        if (methodInvocation.isCalledByInvokingTest())
+          writeObjectToFile(methodInvocation);
+      }
+      else writeObjectToFile(methodInvocation);
     }
   }
 }
