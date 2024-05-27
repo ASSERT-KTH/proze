@@ -71,19 +71,38 @@ public class ProzeAspect0 {
       methodInvocation.setParameters((Object[]) parameterObjects, parameterTypes);
       StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
       String stackTrace = Arrays.toString(stackTraceElements);
-      boolean calledByInvokingTest = testMethodsThatCallThisMethod.stream().anyMatch(stackTrace::contains);
-      methodInvocation.setCalledByInvokingTest(calledByInvokingTest);
+      boolean invokingTestInStack = testMethodsThatCallThisMethod.stream().anyMatch(stackTrace::contains);
+      // test is not in stack
+      if (!invokingTestInStack) {
+        methodInvocation.setCalledByInvokingTest(false);
+        methodInvocation.setMethodTestDistance(0);
+        methodInvocation.setInvokingTest("");
+      }
+      // test is in stack
       String invokingTest = "";
-      if (calledByInvokingTest) {
-        for (StackTraceElement e : stackTraceElements) {
-          if (testMethodsThatCallThisMethod.stream()
-                  .anyMatch(t -> t.equals(e.getClassName() + "." + e.getMethodName()))) {
-            invokingTest = e.getClassName() + "." + e.getMethodName();
+      int distanceBetweenMethodAndTest = 0;
+      int methodIndex = 0;
+      int testIndex = 0;
+      if (invokingTestInStack) {
+        for (int i = 0; i < stackTraceElements.length; i++) {
+          if (methodIndex > 0 && testIndex > 0)
             break;
+          String classNameMethodNameInStack = stackTraceElements[i].getClassName()
+                  + "." + stackTraceElements[i].getMethodName();
+          if (classNameMethodNameInStack.equals(classNameMethodName)) {
+            methodIndex = i;
+          }
+          if (testMethodsThatCallThisMethod.stream().anyMatch(
+                  t -> t.equals(classNameMethodNameInStack))) {
+            testIndex = i;
+            invokingTest = classNameMethodNameInStack;
           }
         }
+        distanceBetweenMethodAndTest = testIndex - methodIndex;
+        methodInvocation.setCalledByInvokingTest(distanceBetweenMethodAndTest == 1);
+        methodInvocation.setMethodTestDistance(distanceBetweenMethodAndTest);
+        methodInvocation.setInvokingTest(invokingTest);
       }
-      methodInvocation.setInvokingTest(invokingTest);
       methodInvocation.setStackTrace(stackTrace);
       return null;
     }

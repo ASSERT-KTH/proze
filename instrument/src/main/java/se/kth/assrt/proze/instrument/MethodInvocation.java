@@ -3,7 +3,8 @@ package se.kth.assrt.proze.instrument;
 public class MethodInvocation {
   Object parameters;
   boolean calledByInvokingTest;
-  String invokingTest = "";
+  int methodTestDistance;
+  String invokingTest;
   String stackTrace;
 
   public MethodInvocation() {
@@ -38,5 +39,9 @@ public class MethodInvocation {
 
   public void setInvokingTest(String invokingTest) {
     this.invokingTest = invokingTest;
+  }
+
+  public void setMethodTestDistance(int distance) {
+    this.methodTestDistance = distance;
   }
 }
