@@ -6,6 +6,7 @@ import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.visitor.filter.TypeFilter;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
@@ -58,6 +59,18 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             .getDeclaringType().getQualifiedName().startsWith(t));
   }
 
+  private String getInvocationLiterals(CtAbstractInvocation<?> invocation) {
+    String invocationLiterals = "PROZE-NO-LITERALS";
+    if (invocation.getArguments().stream()
+            .allMatch(a -> a.getClass().getSimpleName().equals("CtLiteralImpl"))) {
+      invocationLiterals = invocation.getArguments().stream()
+              .map(a -> a.toString().replaceAll("\"", ""))
+              .collect(Collectors.joining(","));
+
+    }
+    return invocationLiterals;
+  }
+
   private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
     List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
     List<CtConstructorCall<?>> constructorCalls =
@@ -70,8 +83,10 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         String constructorParameterTypesStringified
                 = constructorParameterTypes.toString().replaceAll("\\s", "")
                 .replaceAll("\\[", "").replaceAll("]", "");
+        String invocationLiterals = getInvocationLiterals(constructorCall);
         InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
                 constructorCall.prettyprint(),
+                invocationLiterals,
                 constructorCall.getExecutable().getDeclaringType().getQualifiedName()
                         + ".init(" + constructorParameterTypesStringified + ")",
                 constructorCall.getExecutable().getDeclaringType().getQualifiedName(),
@@ -91,8 +106,10 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       if (!invocation.getArguments().isEmpty()
               & !invocation.toString().toLowerCase().contains("assert")) {
         if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
+          String invocationLiterals = getInvocationLiterals(invocation);
           InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
                   invocation.prettyprint(),
+                  invocationLiterals,
                   invocation.getExecutable().getDeclaringType().getQualifiedName()
                           + "." + invocation.getExecutable().getSignature(),
                   invocation.getExecutable().getDeclaringType().getQualifiedName(),

@@ -54,6 +54,7 @@ def prepare_analysis_report(union_result, method_wise_report):
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
+    data["originalTestArgsStatic"] = {key: set(value) for key, value in data["originalTestArgsStatic"].items()}
     data["originalTestArgs"] = union_result[i]["originalTestArgs"]
     data["numInvocationsProd"] = union_result[i]["numInvocationsProd"]
     data["numInvocationsTest"] = union_result[i]["numInvocationsTest"]
