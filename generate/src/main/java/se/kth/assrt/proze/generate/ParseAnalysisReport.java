@@ -11,21 +11,21 @@ import java.nio.file.Path;
 import java.util.*;
 
 public class ParseAnalysisReport {
-  static String sanitizeFullMethodSignature(String fullMethodSignature) {
-    return fullMethodSignature.replace("_", "(") + ")";
-  }
-  static List<TargetMethod> parseReport(Path reportPath) {
-    List<TargetMethod> targetMethods = new ArrayList<>();
-    try (Reader reader = Files.newBufferedReader(reportPath, StandardCharsets.UTF_8)) {
-      Gson gson = new Gson();
-      Type listOfStrings = new TypeToken<ArrayList<String>>() {}.getType();
+    static String sanitizeFullMethodSignature(String fullMethodSignature) {
+        return fullMethodSignature.replace("_", "(") + ")";
+    }
+    static List<TargetMethod> parseReport(Path reportPath) {
+        List<TargetMethod> targetMethods = new ArrayList<>();
+        try (Reader reader = Files.newBufferedReader(reportPath, StandardCharsets.UTF_8)) {
+            Gson gson = new Gson();
+            Type listOfStrings = new TypeToken<ArrayList<String>>() {}.getType();
 
-      JsonArray methodArray = gson.fromJson(reader, JsonArray.class);
-      for (JsonElement method : methodArray) {
-        TargetMethod thisMethod = new TargetMethod();
-        // fully.qualified.name(param1,param2)
-        thisMethod.setFullMethodSignature(sanitizeFullMethodSignature(
-                method.getAsJsonObject().get("fullMethodSignature").getAsString()));
+            JsonArray methodArray = gson.fromJson(reader, JsonArray.class);
+            for (JsonElement method : methodArray) {
+                TargetMethod thisMethod = new TargetMethod();
+                // fully.qualified.name(param1,param2)
+                thisMethod.setFullMethodSignature(sanitizeFullMethodSignature(
+                        method.getAsJsonObject().get("fullMethodSignature").getAsString()));
 
         thisMethod.setDeclaringType(method.getAsJsonObject().get("declaringType").getAsString());
         thisMethod.setMethodName(method.getAsJsonObject().get("methodName").getAsString());
@@ -60,6 +60,5 @@ public class ParseAnalysisReport {
       e.printStackTrace();
       return new ArrayList<>();
     }
-    return targetMethods;
-  }
+      return targetMethods;
 }

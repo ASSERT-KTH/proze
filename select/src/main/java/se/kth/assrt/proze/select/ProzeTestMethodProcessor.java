@@ -59,6 +59,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             .getDeclaringType().getQualifiedName().startsWith(t));
   }
 
+
   private String getInvocationLiterals(CtAbstractInvocation<?> invocation) {
     String invocationLiterals = "PROZE-NO-LITERALS";
     if (invocation.getArguments().stream()
@@ -72,32 +73,36 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   }
 
   private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
-    List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
-    List<CtConstructorCall<?>> constructorCalls =
-            statement.getElements(new TypeFilter<>(CtConstructorCall.class));
-    for (CtConstructorCall<?> constructorCall : constructorCalls) {
-      if (!constructorCall.getArguments().isEmpty()
-              & areParametersPrimitivesOrStrings(constructorCall)
-              & !isInvocationOnJavaOrExternalLibraryMethod(constructorCall)) {
-        List<String> constructorParameterTypes = getParametersAsPrimitivesOrStrings(constructorCall);
-        String constructorParameterTypesStringified
-                = constructorParameterTypes.toString().replaceAll("\\s", "")
-                .replaceAll("\\[", "").replaceAll("]", "");
-        String invocationLiterals = getInvocationLiterals(constructorCall);
-        InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
-                constructorCall.prettyprint(),
-                invocationLiterals,
-                constructorCall.getExecutable().getDeclaringType().getQualifiedName()
-                        + ".init(" + constructorParameterTypesStringified + ")",
-                constructorCall.getExecutable().getDeclaringType().getQualifiedName(),
-                "init",
-                constructorParameterTypes,
-                constructorCall.getExecutable().getType().getQualifiedName());
-        constructorInvocationsWithPrimitiveParams.add(thisInvocation);
-      }
+        List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
+        List<CtConstructorCall<?>> constructorCalls =
+                statement.getElements(new TypeFilter<>(CtConstructorCall.class));
+        for (CtConstructorCall<?> constructorCall : constructorCalls) {
+            if (!constructorCall.getArguments().isEmpty()
+                    & areParametersPrimitivesOrStrings(constructorCall)
+                    & !isInvocationOnJavaOrExternalLibraryMethod(constructorCall)) {
+                List<String> constructorParameterTypes = getParametersAsPrimitivesOrStrings(constructorCall);
+                String constructorParameterTypesStringified
+                        = constructorParameterTypes.toString().replaceAll("\\s", "")
+                        .replaceAll("\\[", "").replaceAll("]", "");
+                InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
+                        constructorCall.prettyprint(),
+                        constructorCall.getExecutable().getDeclaringType().getQualifiedName()
+                                + ".init(" + constructorParameterTypesStringified + ")",
+                        constructorCall.getExecutable().getDeclaringType().getQualifiedName(),
+                        "init",
+                        constructorParameterTypes,
+                        constructorCall.getExecutable().getType().getQualifiedName());
+                constructorInvocationsWithPrimitiveParams.add(thisInvocation);
+            }
+        }
+        return constructorInvocationsWithPrimitiveParams;
     }
-    return constructorInvocationsWithPrimitiveParams;
-  }
+
+    private boolean isAlreadyParameterized(CtMethod<?> testMethod) {
+        List<String> typesToIgnore = List.of("ParameterizedTest", "Test(dataProvider");
+        return typesToIgnore.stream().anyMatch(t -> testMethod.getAnnotations().stream()
+                .anyMatch(a -> a.toString().contains(t)));
+    }
 
   private List<InvocationWithPrimitiveParams> getMethodInvocationsWithPrimitiveParams(CtStatement statement) {
     List<InvocationWithPrimitiveParams> methodInvocationsWithPrimitiveParams = new ArrayList<>();
@@ -118,10 +123,8 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                   invocation.getExecutable().getType().getQualifiedName());
           methodInvocationsWithPrimitiveParams.add(thisInvocation);
         }
-      }
+        return methodInvocationsWithPrimitiveParams;
     }
-    return methodInvocationsWithPrimitiveParams;
-  }
 
   private List<InvocationWithPrimitiveParams> getInvocationsWithPrimitiveParameters(CtMethod<?> testMethod) {
     List<InvocationWithPrimitiveParams> invocationsWithPrimitiveParams = new LinkedList<>();
@@ -145,7 +148,8 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   public void process(CtMethod<?> method) {
     if (method.isPublic()
             & methodHasTestAnnotation(method)
-            & methodHasAtLeastOneAssertion(method)) {
+            & methodHasAtLeastOneAssertion(method)
+            & !isAlreadyParameterized(method)) {
       List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
               getInvocationsWithPrimitiveParameters(method);
       ProzeTestMethod testMethod = new ProzeTestMethod(
@@ -158,6 +162,5 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       if (!invocationWithPrimitiveParams.isEmpty()) {
         setOfTestClasses.add(method.getDeclaringType().getSimpleName() + "#" + method.getSimpleName());
       }
-    }
   }
 }

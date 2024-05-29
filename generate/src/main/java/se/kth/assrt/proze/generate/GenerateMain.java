@@ -31,8 +31,9 @@ public class GenerateMain implements Callable<Integer> {
   public Integer call() throws Exception {
     List<TargetMethod> targetMethods = ParseAnalysisReport.parseReport(analysisReportPath);
     logger.info(String.format("Found invocation data for %s methods", targetMethods.size()));
-    if (!targetMethods.isEmpty())
+    if (!targetMethods.isEmpty()) {
       new GenerateLauncher(projectPath).processWithSpoon(targetMethods);
+    }
     return null;
   }
 

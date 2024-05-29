@@ -21,7 +21,6 @@ public class ProzeTestMethod {
   public String getTestClassName() {
     return testClassName;
   }
-
   public String getTestName() {
     return testName;
   }
