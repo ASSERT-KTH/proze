@@ -25,13 +25,6 @@ public class GenerateMain implements Callable<Integer> {
           description = "The path to the json report with prod and test data")
   private Path analysisReportPath;
 
-  @CommandLine.Parameters(
-          index = "2",
-          description = "Whether all common arguments should be replaced with generated parameters",
-          defaultValue = "false")
-
-  private String shouldReplace;
-
   private static final Logger logger = LoggerFactory.getLogger(GenerateMain.class);
 
   @Override
@@ -39,7 +32,7 @@ public class GenerateMain implements Callable<Integer> {
     List<TargetMethod> targetMethods = ParseAnalysisReport.parseReport(analysisReportPath);
     logger.info(String.format("Found invocation data for %s methods", targetMethods.size()));
     if (!targetMethods.isEmpty()) {
-      new GenerateLauncher(projectPath, Boolean.parseBoolean(shouldReplace)).processWithSpoon(targetMethods);
+      new GenerateLauncher(projectPath).processWithSpoon(targetMethods);
     }
     return null;
   }

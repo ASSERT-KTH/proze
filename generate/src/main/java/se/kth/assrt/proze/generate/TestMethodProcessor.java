@@ -31,13 +31,11 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     static Set<String> processedMethodSignatures = new LinkedHashSet<>();
     private final CtModel model;
     List<TargetMethod> targetMethods;
-    private final boolean shouldReplace;
     private static boolean isTestNG = false;
 
-    public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model, boolean shouldReplace) {
+    public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model) {
         this.targetMethods = targetMethods;
         this.model = model;
-        this.shouldReplace = shouldReplace;
     }
 
     public void replaceOriginalConstructorArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
@@ -272,8 +270,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     }
 
         public void replaceCommonVars(CtType<?> generatedClass) {
-        if (!shouldReplace)
-            return;
         Optional<CtMethod<?>> optionalTestMethod = generatedClass.getMethods().stream()
                 .filter(m -> m.getAnnotations().stream()
                         .anyMatch(a -> a.toString().contains("Test")))
@@ -335,7 +331,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                         // generate a static generator method, generateForMethod
                         generatedClass.addMethod(generateStaticParameterGeneratorMethod(
                                 generatedClass.getFactory()));
-                        replaceCommonVars(generatedClass);
                         // replace parameter with call to generator
                         replaceOriginalConstructorArgumentsWithArgsFromUnion(generatedClass);
                     }
@@ -353,7 +348,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                     // generate a static generator method, generateForMethod
                     generatedClass.addMethod(generateStaticParameterGeneratorMethod(
                             generatedClass.getFactory()));
-                    replaceCommonVars(generatedClass);
                     // replace parameter with call to generator
                     replaceOriginalMethodArgumentsWithArgsFromUnion(generatedClass);
                 }
