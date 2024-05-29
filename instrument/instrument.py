@@ -49,6 +49,8 @@ def generate_aspects(df):
             test_list = sanitize_parameter_and_test_list(str(row["invokedByTests"]))
             test_list = test_list.replace(", ", ",\n            ")
             line = re.sub(r"\(.+\)", "(\n            " + test_list + ")", line)
+          if ("saveDataForOriginalTestsOnly = " in line and mode == "ORIGINAL"):
+            line = re.sub(r"= false", "= true", line)
           f.write(line)
   print("New aspect classes added in se.kth.assrt.proze.instrument")
   all_aspects = sorted(glob.glob(base_path + "*.java"), key=lambda x:float(re.findall("(\d+)",x)[0]))
@@ -86,12 +88,22 @@ def update_glowroot_plugin_json(aspect_count):
 
 def main(argv):
   try:
+    global mode
+    mode = "ALL"
+    if len(argv) == 3:
+      mode = argv[2].upper()
+    # ALL: serialize args for all invocations, limit serialization to 3 MB
+    # ORIGINAL: serialize args only for tests that directly invoke target methods
+    if mode != "ALL" and mode != "ORIGINAL":
+      raise Exception("incorrect MODE, should be ALL or ORIGINAL")
+    print("Mode set to", mode)
     df = pd.read_json(argv[1])
     print("Found data for", df.index.size, "methods")
     aspect_count = generate_aspects(df)
     update_glowroot_plugin_json(aspect_count)
   except Exception as e:
-    print("USAGE: python instrument.py </path/to/method/wise/report>.json")
+    print("USAGE: python instrument.py </path/to/method/wise/report>.json <MODE>")
+    print("where MODE: one of ALL (default), ORIGINAL")
     print(e)
     sys.exit()
 

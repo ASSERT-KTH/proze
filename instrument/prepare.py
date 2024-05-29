@@ -19,7 +19,8 @@ def prepare_method_wise_report(test_methods):
             "declaringType": "",
             "methodName": "",
             "parameters": "",
-            "invokedByTests": []}
+            "invokedByTests": [],
+            "originalTestArgsStatic": {}}
     data["fullMethodSignature"] = prepare_method_signature(m)
     for j in range(len(test_methods)):
       this_test_method = test_methods[j]
@@ -30,6 +31,12 @@ def prepare_method_wise_report(test_methods):
           data["methodName"] = this_invocation["methodName"]
           data["parameters"] = this_invocation["methodParameterTypes"]
           data["invokedByTests"].append(str(this_test_method["testClassName"] + "." + this_test_method["testName"]))
+          current_test_fqn = this_test_method["testClassName"] + "." + this_test_method["testName"]
+          if this_invocation["invocationLiterals"] != "PROZE-NO-LITERALS":
+            if current_test_fqn in data["originalTestArgsStatic"].keys():
+              data["originalTestArgsStatic"][current_test_fqn].append(this_invocation["invocationLiterals"])
+            else:
+              data["originalTestArgsStatic"][current_test_fqn] = [this_invocation["invocationLiterals"]]
     method_list.append(data)
   return method_list
 

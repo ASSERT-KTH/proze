@@ -8,6 +8,7 @@ import org.glowroot.agent.plugin.api.weaving.*;
 import java.io.*;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ProzeAspect0 {
   static final Gson gson = new GsonBuilder()
@@ -21,6 +22,7 @@ public class ProzeAspect0 {
           methodParameterTypes = {"param1", "param2"},
           timerName = "Timer - name")
   public static class TargetMethodAdvice implements AdviceTemplate {
+    private static final boolean saveDataForOriginalTestsOnly = false;
     private static final int COUNT = 0;
     private static Logger logger = Logger.getLogger(TargetMethodAdvice.class);
     private static final String methodParamTypesString = String.join(",",
@@ -59,8 +61,12 @@ public class ProzeAspect0 {
     public static boolean enableProfileCollection() {
       // logger.info(String.format("ProzeAspect %s: %s", COUNT, classNameMethodName));
       AdviceTemplate.setup();
-      // Limit data collection to 2MB
-      return new File(fileToSerializeIn).length() < 2000000L;
+      // Save arguments only if method directly invoked by one of the invoking tests
+      if (saveDataForOriginalTestsOnly) {
+        return true;
+      }
+      // Otherwise limit data collection to 3MB
+      return new File(fileToSerializeIn).length() < 3000000L;
     }
 
     @OnBefore
@@ -68,13 +74,51 @@ public class ProzeAspect0 {
       String[] parameterTypes = TargetMethodAdvice.class.getAnnotation(Pointcut.class)
               .methodParameterTypes();
       methodInvocation.setParameters((Object[]) parameterObjects, parameterTypes);
-      methodInvocation.setStackTrace(Arrays.toString(Thread.currentThread().getStackTrace()));
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      String stackTrace = Arrays.toString(stackTraceElements);
+      boolean invokingTestInStack = testMethodsThatCallThisMethod.stream().anyMatch(stackTrace::contains);
+      // test is not in stack
+      if (!invokingTestInStack) {
+        methodInvocation.setCalledByInvokingTest(false);
+        methodInvocation.setMethodTestDistance(0);
+        methodInvocation.setInvokingTest("");
+      }
+      // test is in stack
+      String invokingTest = "";
+      int distanceBetweenMethodAndTest = 0;
+      int methodIndex = 0;
+      int testIndex = 0;
+      if (invokingTestInStack) {
+        for (int i = 0; i < stackTraceElements.length; i++) {
+          if (methodIndex > 0 && testIndex > 0)
+            break;
+          String classNameMethodNameInStack = stackTraceElements[i].getClassName()
+                  + "." + stackTraceElements[i].getMethodName();
+          if (classNameMethodNameInStack.equals(classNameMethodName)) {
+            methodIndex = i;
+          }
+          if (testMethodsThatCallThisMethod.stream().anyMatch(
+                  t -> t.equals(classNameMethodNameInStack))) {
+            testIndex = i;
+            invokingTest = classNameMethodNameInStack;
+          }
+        }
+        distanceBetweenMethodAndTest = testIndex - methodIndex;
+        methodInvocation.setCalledByInvokingTest(distanceBetweenMethodAndTest == 1);
+        methodInvocation.setMethodTestDistance(distanceBetweenMethodAndTest);
+        methodInvocation.setInvokingTest(invokingTest);
+      }
+      methodInvocation.setStackTrace(stackTrace);
       return null;
     }
 
     @OnReturn
     public static void onReturn() {
-      writeObjectToFile(methodInvocation);
+      if (saveDataForOriginalTestsOnly) {
+        if (methodInvocation.isCalledByInvokingTest())
+          writeObjectToFile(methodInvocation);
+      }
+      else writeObjectToFile(methodInvocation);
     }
   }
 }

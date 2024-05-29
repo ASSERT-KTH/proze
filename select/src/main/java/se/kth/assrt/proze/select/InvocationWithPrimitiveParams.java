@@ -4,6 +4,7 @@ import java.util.List;
 
 public class InvocationWithPrimitiveParams {
   private final String invocation;
+  private final String invocationLiterals;
   private final String fullMethodSignature;
   private final String methodDeclaringType;
   private final String methodName;
@@ -11,12 +12,14 @@ public class InvocationWithPrimitiveParams {
   private final String methodReturnType;
 
   public InvocationWithPrimitiveParams(String invocation,
+                                       String invocationLiterals,
                                        String fullMethodSignature,
                                        String methodDeclaringType,
                                        String methodName,
                                        List<String> methodParameterTypes,
                                        String methodReturnType) {
     this.invocation = invocation;
+    this.invocationLiterals = invocationLiterals;
     this.fullMethodSignature = fullMethodSignature;
     this.methodDeclaringType = methodDeclaringType;
     this.methodName = methodName;

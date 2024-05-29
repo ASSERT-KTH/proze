@@ -6,6 +6,7 @@ import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.visitor.filter.TypeFilter;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
@@ -58,7 +59,20 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             .getDeclaringType().getQualifiedName().startsWith(t));
   }
 
-    private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
+
+  private String getInvocationLiterals(CtAbstractInvocation<?> invocation) {
+    String invocationLiterals = "PROZE-NO-LITERALS";
+    if (invocation.getArguments().stream()
+            .allMatch(a -> a.getClass().getSimpleName().equals("CtLiteralImpl"))) {
+      invocationLiterals = invocation.getArguments().stream()
+              .map(a -> a.toString().replaceAll("\"", ""))
+              .collect(Collectors.joining(","));
+
+    }
+    return invocationLiterals;
+  }
+
+  private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
         List<InvocationWithPrimitiveParams> constructorInvocationsWithPrimitiveParams = new ArrayList<>();
         List<CtConstructorCall<?>> constructorCalls =
                 statement.getElements(new TypeFilter<>(CtConstructorCall.class));
@@ -90,24 +104,24 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                 .anyMatch(a -> a.toString().contains(t)));
     }
 
-    private List<InvocationWithPrimitiveParams> getMethodInvocationsWithPrimitiveParams(CtStatement statement) {
-        List<InvocationWithPrimitiveParams> methodInvocationsWithPrimitiveParams = new ArrayList<>();
-        List<CtInvocation<?>> invocationsInStatement = statement.getElements(new TypeFilter<>(CtInvocation.class));
-        for (CtInvocation<?> invocation : invocationsInStatement) {
-            if (!invocation.getArguments().isEmpty()
-                    & !invocation.toString().toLowerCase().contains("assert")) {
-                if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
-                    InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
-                            invocation.prettyprint(),
-                            invocation.getExecutable().getDeclaringType().getQualifiedName()
-                                    + "." + invocation.getExecutable().getSignature(),
-                            invocation.getExecutable().getDeclaringType().getQualifiedName(),
-                            invocation.getExecutable().getSimpleName(),
-                            getParametersAsPrimitivesOrStrings(invocation),
-                            invocation.getExecutable().getType().getQualifiedName());
-                    methodInvocationsWithPrimitiveParams.add(thisInvocation);
-                }
-            }
+  private List<InvocationWithPrimitiveParams> getMethodInvocationsWithPrimitiveParams(CtStatement statement) {
+    List<InvocationWithPrimitiveParams> methodInvocationsWithPrimitiveParams = new ArrayList<>();
+    List<CtInvocation<?>> invocationsInStatement = statement.getElements(new TypeFilter<>(CtInvocation.class));
+    for (CtInvocation<?> invocation : invocationsInStatement) {
+      if (!invocation.getArguments().isEmpty()
+              & !invocation.toString().toLowerCase().contains("assert")) {
+        if (areParametersPrimitivesOrStrings(invocation) & !isInvocationOnJavaOrExternalLibraryMethod(invocation)) {
+          String invocationLiterals = getInvocationLiterals(invocation);
+          InvocationWithPrimitiveParams thisInvocation = new InvocationWithPrimitiveParams(
+                  invocation.prettyprint(),
+                  invocationLiterals,
+                  invocation.getExecutable().getDeclaringType().getQualifiedName()
+                          + "." + invocation.getExecutable().getSignature(),
+                  invocation.getExecutable().getDeclaringType().getQualifiedName(),
+                  invocation.getExecutable().getSimpleName(),
+                  getParametersAsPrimitivesOrStrings(invocation),
+                  invocation.getExecutable().getType().getQualifiedName());
+          methodInvocationsWithPrimitiveParams.add(thisInvocation);
         }
         return methodInvocationsWithPrimitiveParams;
     }
@@ -132,22 +146,21 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
   @Override
   public void process(CtMethod<?> method) {
-      if (method.isPublic()
-              & methodHasTestAnnotation(method)
-              & methodHasAtLeastOneAssertion(method)
-              & !isAlreadyParameterized(method)) {
-          List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
-                  getInvocationsWithPrimitiveParameters(method);
-          ProzeTestMethod testMethod = new ProzeTestMethod(
-                  method.getDeclaringType().getQualifiedName(),
-                  method.getSimpleName(),
-                  method.getSignature(),
-                  invocationWithPrimitiveParams);
-          testMethods.add(testMethod);
-          // If there are candidate invocations within this test, get test class name
-          if (!invocationWithPrimitiveParams.isEmpty()) {
-              setOfTestClasses.add(method.getDeclaringType().getSimpleName());
-          }
+    if (method.isPublic()
+            & methodHasTestAnnotation(method)
+            & methodHasAtLeastOneAssertion(method)
+            & !isAlreadyParameterized(method)) {
+      List<InvocationWithPrimitiveParams> invocationWithPrimitiveParams =
+              getInvocationsWithPrimitiveParameters(method);
+      ProzeTestMethod testMethod = new ProzeTestMethod(
+              method.getDeclaringType().getQualifiedName(),
+              method.getSimpleName(),
+              method.getSignature(),
+              invocationWithPrimitiveParams);
+      testMethods.add(testMethod);
+      // If there are candidate invocations within this test, get test class name
+      if (!invocationWithPrimitiveParams.isEmpty()) {
+        setOfTestClasses.add(method.getDeclaringType().getSimpleName() + "#" + method.getSimpleName());
       }
   }
 }

@@ -25,6 +25,7 @@ public class GenerateLauncher {
       logger.info("Considering all sources (app + test)");
       launcher = new MavenLauncher(projectPath.toString(),
               MavenLauncher.SOURCE_TYPE.ALL_SOURCE);
+      launcher.getEnvironment().disableConsistencyChecks();
       launcher.buildModel();
     } catch (Exception e) {
       logger.info(e.getMessage());

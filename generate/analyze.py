@@ -1,8 +1,15 @@
 import glob
 import json
+import os
 import pandas as pd
 import re
 import sys
+
+
+def serialize_sets(obj):
+  if isinstance(obj, set):
+    return list(obj)
+  return obj
 
 def merge_prod_test_results(result_prod, result_test):
   methods_invoked_prod = set()
@@ -47,6 +54,8 @@ def prepare_analysis_report(union_result, method_wise_report):
   method_df = pd.read_json(method_wise_report)
   for i in range(len(union_result)):
     data = method_df[method_df["fullMethodSignature"] == union_result[i]["fullMethodSignature"]].to_dict('records')[0]
+    data["originalTestArgsStatic"] = {key: set(value) for key, value in data["originalTestArgsStatic"].items()}
+    data["originalTestArgs"] = union_result[i]["originalTestArgs"]
     data["numInvocationsProd"] = union_result[i]["numInvocationsProd"]
     data["numInvocationsTest"] = union_result[i]["numInvocationsTest"]
     data["totalNumInvocations"] = union_result[i]["numInvocationsProd"] + union_result[i]["numInvocationsTest"]
@@ -54,7 +63,11 @@ def prepare_analysis_report(union_result, method_wise_report):
     data["numProdArgs"] = union_result[i]["numUniqueArgumentsProd"]
     data["sizeUnion"] = union_result[i]["sizeUnion"]
     data["unionProdAndTestArgs"] = sorted(union_result[i]["unionProdAndTestArgs"])
-    final_report.append(data)
+    # we want to parameterize only if we have more than one argument in the union
+    if data["sizeUnion"] > 1:
+      # we want multiple sources of info for the arguments
+      if data["numProdArgs"] > 0 or (len(set(data["invokedByTests"])) > 1):
+        final_report.append(data)
   return final_report
 
 def add_arguments_as_string_in_df(df):
@@ -71,10 +84,30 @@ def analyze_data(data_files, source):
     data['argumentsAsString'] = add_arguments_as_string_in_df(data)
     print("=================================================================================================")
     full_method_signature = re.sub(r".+\/(.+)\.json", r"\g<1>", data_file)
+    # merge original arguments from tests that directly invoke method
+    if (source == "Test"):
+      corresponding_original_test_file = data_file.replace("proze-object-data-test", "proze-object-data-original")
+      if os.path.isfile(corresponding_original_test_file):
+        print("Merging original test arguments for", full_method_signature)
+        original_test_data = pd.read_json(corresponding_original_test_file)
+        original_test_data['argumentsAsString'] = add_arguments_as_string_in_df(original_test_data)
+        data = pd.concat([data, original_test_data], ignore_index=True, sort=False)
+
+    original_test_args = {}
+    if (source == "Test"):
+      for i in range(len(data)):
+        if (data["calledByInvokingTest"][i]):
+          if (data["invokingTest"][i] in original_test_args.keys()):
+            original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
+          else:
+            original_test_args[data["invokingTest"][i]] = set()
+            original_test_args[data["invokingTest"][i]].add(data["argumentsAsString"][i])
+
     result.append({"fullMethodSignature": full_method_signature,
                    "numInvocations" + source: len(data["argumentsAsString"]),
                    "numUniqueArguments" + source: len(set(data["argumentsAsString"])),
-                   "uniqueArguments" + source: sorted(set(data["argumentsAsString"]))})
+                   "uniqueArguments" + source: sorted(set(data["argumentsAsString"])),
+                   "originalTestArgs": original_test_args})
   return result
 
 def sanitize_file_to_json(data_file):
@@ -100,19 +133,23 @@ def sanitize_file_to_json(data_file):
 def get_data_files_and_sanitize():
   print("[INFO] Found", len(prod_files), "file(s) with production data")
   print("[INFO] Found", len(test_files), "file(s) with test data")
+  print("[INFO] Found", len(original_test_files), "file(s) with test data with original args")
   for p in prod_files:
     sanitize_file_to_json(p)
   for t in test_files:
     sanitize_file_to_json(t)
+  for o in original_test_files:
+    sanitize_file_to_json(o)
   print("=================================================================================================")
 
 def main(argv):
   try:
     if len(argv) < 2:
       raise Exception("method-wise-report not provided")
-    global prod_files, test_files
+    global prod_files, test_files, original_test_files
     prod_files = glob.glob("/tmp/proze-object-data-prod/*.json")
     test_files = glob.glob("/tmp/proze-object-data-test/*.json")
+    original_test_files = glob.glob("/tmp/proze-object-data-original/*.json")
     get_data_files_and_sanitize()
     result_prod = analyze_data(prod_files, "Prod")
     result_test = analyze_data(test_files, "Test")
@@ -126,7 +163,7 @@ def main(argv):
     final_report = prepare_analysis_report(union_result, argv[1])
     output_report_file = "./analyzed-" + argv[1].split("/")[-1]
     with open(output_report_file, "w") as outfile:
-      json.dump(final_report, outfile, indent = 2)
+      json.dump(final_report, outfile, indent = 2, default=serialize_sets)
     print("Generated analysis report for these", len(final_report), "methods:", output_report_file)
   except Exception as e:
     print("USAGE: python analyze.py </path/to/method/wise/report>.json")

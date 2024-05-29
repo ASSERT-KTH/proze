@@ -1,5 +1,9 @@
 package se.kth.assrt.proze.generate;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -9,10 +13,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.CtModel;
-import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtConstructorCall;
-import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.*;
 import spoon.reflect.declaration.*;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.CtTypeReference;
@@ -116,23 +117,154 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         return generatorMethod;
     }
 
-    public CtMethod<?> generateStaticParameterGeneratorJUnit(Factory factory) {
-        CtMethod<?> generatorMethod = factory.createMethod().setSimpleName(generatorMethodName);
-        // make method private and static
-        generatorMethod.setModifiers(Set.of(ModifierKind.PRIVATE, ModifierKind.STATIC));
-        // set type as Stream<Arguments>
-        CtTypeReference<?> streamCtTypeReference = factory.createCtTypeReference(Stream.class);
-        streamCtTypeReference.setActualTypeArguments(List.of(factory.createCtTypeReference(Arguments.class)));
-        generatorMethod.setType(streamCtTypeReference);
-        // body
-        CtBlock<?> methodBody = factory.createBlock();
-        StringBuilder arguments = buildArguments(currentTargetMethod.getUnionProdAndTestArgs(),
-                "org.junit.jupiter.params.provider.Arguments.of(", ")");
-        methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
-                "return java.util.stream.Stream.of(\n%s\n)",
-                arguments)));
-        generatorMethod.setBody(methodBody);
-        return generatorMethod;
+
+  public CtType<?> generateOneParamTestPerAssertion(CtType<?> generatedClass) {
+    for (CtMethod<?> method : generatedClass.getMethods()) {
+      if (method.getAnnotations().stream()
+              .anyMatch(a -> a.toString().contains("ParameterizedTest"))) {
+        // get the number of assert statements
+        List<CtStatement> assertStatements = method.getBody().getStatements()
+                .stream().filter(s -> s.toString().contains("assert"))
+                .collect(Collectors.toList());
+        logger.info("Found " + assertStatements.size() + " assertion statements");
+        // if fewer than 2 assertions, nothing to do
+        if (assertStatements.size() < 2)
+          return generatedClass;
+        // make a copy of the test for each assert statement
+        for (int i = 0; i < assertStatements.size(); i++) {
+          CtMethod<?> testCopy = generatedClass.getFactory().createMethod();
+          testCopy.setType(method.getType());
+          testCopy.setAnnotations(method.getAnnotations());
+          testCopy.setSimpleName(method.getSimpleName() + "_" + (i + 1));
+          testCopy.setThrownTypes(method.getThrownTypes());
+          testCopy.setModifiers(method.getModifiers());
+          testCopy.setParameters(method.getParameters());
+
+          CtBlock<?> methodBody = generatedClass.getFactory().createBlock();
+          // copy each statement, comment out other assert statements
+          for (CtStatement statementToCopy : method.getBody().getStatements()) {
+            List<CtElement> comments = statementToCopy.getDirectChildren().stream()
+                    .filter(e -> e.getRoleInParent().toString().equals("comment"))
+                    .collect(Collectors.toList());
+            for (CtElement comment : comments) {
+              statementToCopy.removeComment((CtComment) comment);
+            }
+            if (statementToCopy.toString().contains("assert")
+                    && !statementToCopy.toString().equals(assertStatements.get(i).toString())) {
+              CtStatement commentedOutStatement = generatedClass.getFactory()
+                      .createCodeSnippetStatement(String.format("// %s", statementToCopy));
+              methodBody.addStatement(commentedOutStatement);
+            } else {
+              methodBody.addStatement(statementToCopy);
+            }
+          }
+          testCopy.setBody(methodBody);
+          generatedClass.addMethod(testCopy);
+        }
+      }
+    }
+    return generatedClass;
+  }
+
+  public void updateBeforeAfterAnnotations(CtType<?> copyOfTestClass) {
+    Map<String, Class<?>> annotations = Map.of(
+            ".BeforeClass", BeforeAll.class,
+            ".Before", BeforeEach.class,
+            ".AfterClass", AfterAll.class,
+            ".After", AfterEach.class);
+    Factory factory = copyOfTestClass.getFactory();
+    for (Map.Entry<String, Class<?>> annotationMap : annotations.entrySet()) {
+      for (CtMethod<?> annotatedMethod : copyOfTestClass.getMethods().stream()
+              .filter(m -> m.getAnnotations().stream()
+                      .anyMatch(a -> a.toString().endsWith(annotationMap.getKey())))
+              .collect(Collectors.toList())) {
+        CtAnnotation<?> beforeClass = annotatedMethod.getAnnotations().stream()
+                .filter(a -> a.toString().endsWith(annotationMap.getKey())).findFirst().get();
+        annotatedMethod.removeAnnotation(beforeClass);
+        annotatedMethod.addAnnotation(factory.createAnnotation(
+                factory.createCtTypeReference(annotationMap.getValue())));
+        if (annotationMap.getKey().endsWith("Class"))
+          annotatedMethod.addModifier(ModifierKind.STATIC);
+      }
+    }
+  }
+
+  public CtType<?> copyTestClassAndPrepareTestMethod(CtType<?> testClassToCopy,
+                                                     String testMethodToCopy,
+                                                     String classNameSuffix) {
+    CtType<?> copyOfTestClass = testClassToCopy.clone()
+            .setSimpleName("TestProzeGen" + classNameSuffix);
+    copyOfTestClass.accept(new CtScanner() {
+      @Override
+      public <T> void visitCtTypeReference(CtTypeReference<T> reference) {
+        super.visitCtTypeReference(reference);
+        if (reference.getQualifiedName().equals(
+                testClassToCopy.getQualifiedName())) {
+          reference.setSimpleName(copyOfTestClass.getSimpleName());
+        }
+      }
+    });
+    // remove other @Test methods, not other methods such as @BeforeTest (testng)
+    for (CtMethod<?> testMethod : copyOfTestClass.getMethods().stream()
+            .filter(m -> m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().contains(".Test") ||
+                            a.toString().contains(".ParameterizedTest")))
+            .collect(Collectors.toList())) {
+      if (!testMethod.getSimpleName().equals(testMethodToCopy))
+        copyOfTestClass.removeMethod(testMethod);
+    }
+    CtMethod<?> targetTestMethod = copyOfTestClass.getMethodsByName(
+            testMethodToCopy).get(0);
+    Factory factory = copyOfTestClass.getFactory();
+
+    // BeforeClass => BeforeAll
+    // Before => BeforeEach
+    // AfterClass => AfterAll
+    // After => AfterEach
+    updateBeforeAfterAnnotations(copyOfTestClass);
+
+    // remove @Test
+    CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
+            .filter(a -> a.toString().contains("Test")).findFirst().get();
+    targetTestMethod.removeAnnotation(testAnnotation);
+    // add @ParameterizedTest and @MethodSource annotations
+    targetTestMethod.addAnnotation(factory.createAnnotation(
+            factory.createCtTypeReference(ParameterizedTest.class)));
+    CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
+            factory.createCtTypeReference(MethodSource.class));
+    methodSourceAnnotation.addValue("value", generatorMethodName);
+    targetTestMethod.addAnnotation(methodSourceAnnotation);
+    // add parameters
+    for (int i = 0; i < currentTargetMethod.getParameters().size(); i++) {
+      CtParameter<?> parameter = factory.createParameter()
+              .setType(factory.createReference(currentTargetMethod
+                      .getParameters().get(i)));
+      parameter.setSimpleName("param" + i);
+      targetTestMethod.addParameter(parameter);
+     }
+      // add generated class to the same package
+    testClassToCopy.getPackage().addType(copyOfTestClass);
+    return copyOfTestClass;
+  }
+    
+      
+  public CtMethod<?> generateStaticParameterGeneratorJUnit(Factory factory) {
+      CtMethod<?> generatorMethod = factory.createMethod().setSimpleName(generatorMethodName);
+      // make method private and static
+      generatorMethod.setModifiers(Set.of(ModifierKind.PRIVATE, ModifierKind.STATIC));
+      // set type as Stream<Arguments>
+      CtTypeReference<?> streamCtTypeReference = factory.createCtTypeReference(Stream.class);
+      streamCtTypeReference.setActualTypeArguments(List.of(factory.createCtTypeReference(Arguments.class)));
+      generatorMethod.setType(streamCtTypeReference);
+      // body
+      CtBlock<?> methodBody = factory.createBlock();
+      StringBuilder arguments = buildArguments(currentTargetMethod.getUnionProdAndTestArgs(),
+              "org.junit.jupiter.params.provider.Arguments.of(", ")");
+      methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
+              "return java.util.stream.Stream.of(\n%s\n)",
+              arguments)));
+      generatorMethod.setBody(methodBody);
+      return generatorMethod;
     }
 
     private StringBuilder buildArguments(List<String> argsList, String returnTypeStart, String returnTypeEnd) {
@@ -229,6 +361,32 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         testClassToCopy.getPackage().addType(copyOfTestClass);
         return copyOfTestClass;
     }
+ main
+    // maybe invoked in multiple tests within same test class: we will make one copy for each method
+    logger.info("method invoked within " +
+            testClassMethodMap.keySet().size() + " different classes");
+    for (String testClass : testClassMethodMap.keySet()) {
+      logger.info("testClass " + testClass);
+      Optional<CtType<?>> foundTestClass = model.getAllTypes().stream()
+              .filter(t -> testClass.equals(t.getQualifiedName())).findFirst();
+      if (foundTestClass.isPresent()) {
+        for (String testMethod : testClassMethodMap.get(testClass)) {
+          logger.info("testMethod " + testMethod);
+          CtType<?> thisTestClass = foundTestClass.get();
+          String classNameSuffix = "_" + method.getDeclaringType().getSimpleName()
+                  + "_" + (currentTargetMethod.getMethodName().equals("init") ? "init" : method.getSignature())
+                  .replaceAll("\\(", "_")
+                  .replaceAll("\\.", "_")
+                  .replaceAll(",", "_")
+                  .replaceAll("\\)", "")
+                  + "_" + thisTestClass.getSimpleName()
+                  + "_" + testMethod;
+          CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
+                  testMethod, classNameSuffix);
+          newClass = generateOneParamTestPerAssertion(newClass);
+          logger.info("Generated class " + newClass.getQualifiedName());
+          generatedTestClasses.add(newClass);
+--
 
     private List<CtType<?>> copyTestClassesWithInvokingTests(CtMethod<?> method) {
         List<CtType<?>> generatedTestClasses = new ArrayList<>();
@@ -240,6 +398,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             String testMethodName = test.replaceFirst("(.+)\\.([^.]*)$", "$2");
             testClassMethodMap.computeIfAbsent(testClassName,
                     v -> new LinkedHashSet<>()).add(testMethodName);
+ draft-merge
         }
         // maybe invoked in multiple tests within same test class: we will make one copy for each method
         logger.info("method invoked within " +
@@ -313,6 +472,18 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             }
         }
       }
+ main
+      // for method invocations
+      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
+        currentTargetMethod = targetMethod;
+        logger.info("Working on method " + fullMethodSignature);
+        List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
+        for (CtType<?> generatedClass : generatedClasses) {
+          // generate a static generator method, generateForMethod
+          generatedClass.addMethod(generateStaticParameterGeneratorMethod(
+                  generatedClass.getFactory()));
+          // replace parameter with call to generator
+          replaceOriginalMethodArgumentsWithArgsFromUnion(generatedClass);
 
     @Override
     public void process(CtMethod<?> method) {

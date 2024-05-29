@@ -42,9 +42,9 @@ public class MethodProcessorTest {
 
   @Test
   public void testThatSetOfTestClassesIsFound() {
-    assertEquals(6,
+    assertEquals(19,
             prozeTestMethodProcessor.getSetOfTestClasses().size(),
-            "6 test classes containing test methods " +
+            "19 test classes containing test methods " +
                     "with invocations should be found");
   }
 
