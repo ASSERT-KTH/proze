@@ -45,5 +45,6 @@
   - This generates `analyzed-method-wise-report-<project-name>.json`
 - `mvn clean install`
 - `java -jar target/generate-version-jar-with-dependencies.jar /path/to/maven/project/ ./analyzed-method-wise-report-<project-name>.json`
+  - If all method calls with same arguments should be replaced by the generated parameters provide another argument as true. The default is false.
   - The generated test classes are prefixed with `TestProze` under `output/generated/<project-name>/`
   - Add these generated tests within a new module within the project

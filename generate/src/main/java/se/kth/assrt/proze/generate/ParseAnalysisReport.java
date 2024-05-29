@@ -1,8 +1,6 @@
 package se.kth.assrt.proze.generate;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.Reader;
@@ -16,13 +14,12 @@ public class ParseAnalysisReport {
     static String sanitizeFullMethodSignature(String fullMethodSignature) {
         return fullMethodSignature.replace("_", "(") + ")";
     }
-
     static List<TargetMethod> parseReport(Path reportPath) {
         List<TargetMethod> targetMethods = new ArrayList<>();
         try (Reader reader = Files.newBufferedReader(reportPath, StandardCharsets.UTF_8)) {
             Gson gson = new Gson();
-            Type listOfStrings = new TypeToken<ArrayList<String>>() {
-            }.getType();
+            Type listOfStrings = new TypeToken<ArrayList<String>>() {}.getType();
+
             JsonArray methodArray = gson.fromJson(reader, JsonArray.class);
             for (JsonElement method : methodArray) {
                 TargetMethod thisMethod = new TargetMethod();
@@ -44,16 +41,12 @@ public class ParseAnalysisReport {
                 List<String> unionProdAndTestArgs = gson.fromJson(method.getAsJsonObject()
                         .get("unionProdAndTestArgs"), listOfStrings);
                 thisMethod.setUnionProdAndTestArgs(unionProdAndTestArgs);
-                // map of test and arguments for this method
-                List<Map<String, String>> testArgs = new ArrayList<>();
-                JsonArray testArgArray = method.getAsJsonObject().get("testArgs").getAsJsonArray();
-                for (int i = 0; i < testArgArray.size(); i++) {
-                    Map<String, String> testAndArg = new LinkedHashMap<>();
-                    testAndArg.put(testArgArray.get(i).getAsJsonObject().get("test").getAsString(),
-                            testArgArray.get(i).getAsJsonObject().get("arguments").getAsString());
-                    testArgs.add(testAndArg);
-                }
-                thisMethod.setTestArgs(testArgs);
+                // set of tests that directly invoke this target method
+                Type setType = new TypeToken<LinkedHashSet<String>>(){}.getType();
+                Set<String> tests = gson.fromJson(
+                        method.getAsJsonObject().get("invokedByTests").getAsJsonArray(), setType);
+                thisMethod.setTestsThatInvokeDirectly(tests);
+
                 targetMethods.add(thisMethod);
             }
         } catch (Exception e) {

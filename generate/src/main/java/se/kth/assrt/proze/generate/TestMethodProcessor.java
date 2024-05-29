@@ -31,11 +31,13 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     static Set<String> processedMethodSignatures = new LinkedHashSet<>();
     private final CtModel model;
     List<TargetMethod> targetMethods;
+    private final boolean shouldReplace;
     private static boolean isTestNG = false;
 
-    public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model) {
+    public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model, boolean shouldReplace) {
         this.targetMethods = targetMethods;
         this.model = model;
+        this.shouldReplace = shouldReplace;
     }
 
     public void replaceOriginalConstructorArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
@@ -92,31 +94,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             return generateStaticParameterGeneratorJUnit(factory);
         }
     }
-
-  public CtType<?> copyTestClassAndPrepareTestMethod(CtType<?> testClassToCopy,
-                                                     String testMethodToCopy,
-                                                     String classNameSuffix) {
-    CtType<?> copyOfTestClass = testClassToCopy.clone()
-            .setSimpleName("TestProzeGen" + classNameSuffix);
-    copyOfTestClass.accept(new CtScanner() {
-      @Override
-      public <T> void visitCtTypeReference(CtTypeReference<T> reference) {
-        super.visitCtTypeReference(reference);
-        if (reference.getQualifiedName().equals(
-                testClassToCopy.getQualifiedName())) {
-          reference.setSimpleName(copyOfTestClass.getSimpleName());
-        }
-      }
-    });
-    // remove other @Test methods, not other methods such as @BeforeTest (testng)
-    for (CtMethod<?> testMethod : copyOfTestClass.getMethods().stream()
-            .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains(".Test") ||
-                            a.toString().contains(".ParameterizedTest")))
-            .collect(Collectors.toList())) {
-      if (!testMethod.getSimpleName().equals(testMethodToCopy))
-        copyOfTestClass.removeMethod(testMethod);
-
       
     public CtMethod<?> generateDataProviderTestNG(Factory factory) {
         CtMethod<?> generatorMethod = factory.createMethod().setSimpleName("values");
@@ -159,40 +136,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         generatorMethod.setBody(methodBody);
         return generatorMethod;
     }
-
-  private List<CtType<?>> copyTestClassesWithInvokingTests(CtMethod<?> method) {
-    List<CtType<?>> generatedTestClasses = new ArrayList<>();
-    LinkedHashMap<String, Set<String>> testClassMethodMap = new LinkedHashMap<>();
-    Set<String> testsThatInvokeDirectly = currentTargetMethod.getTestsThatInvokeDirectly();
-    for (String test : testsThatInvokeDirectly) {
-      // extract fqn of test class from test method signature
-      String testClassName = test.replaceFirst("(.+)\\.([^.]*)$", "$1");
-      String testMethodName = test.replaceFirst("(.+)\\.([^.]*)$", "$2");
-      testClassMethodMap.computeIfAbsent(testClassName,
-              v -> new LinkedHashSet<>()).add(testMethodName);
-    }
-    // maybe invoked in multiple tests within same test class: we will make one copy for each method
-    logger.info("method invoked within " +
-            testClassMethodMap.keySet().size() + " different classes");
-    for (String testClass : testClassMethodMap.keySet()) {
-      logger.info("testClass " + testClass);
-      Optional<CtType<?>> foundTestClass = model.getAllTypes().stream()
-              .filter(t -> testClass.equals(t.getQualifiedName())).findFirst();
-      if (foundTestClass.isPresent()) {
-        for (String testMethod : testClassMethodMap.get(testClass)) {
-          logger.info("testMethod " + testMethod);
-          CtType<?> thisTestClass = foundTestClass.get();
-          String classNameSuffix = "_" + method.getDeclaringType().getSimpleName()
-                  + "_" + (currentTargetMethod.getMethodName().equals("init") ? "init" : method.getSignature())
-                  .replaceAll("\\(", "_")
-                  .replaceAll("\\.", "_")
-                  .replaceAll(",", "_")
-                  .replaceAll("\\)", "")
-                  + "_" + testMethod;
-          CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
-                  testMethod, classNameSuffix);
-          logger.info("Generated class " + newClass.getQualifiedName());
-          generatedTestClasses.add(newClass);
 
     private StringBuilder buildArguments(List<String> argsList, String returnTypeStart, String returnTypeEnd) {
         StringBuilder arguments = new StringBuilder();
@@ -292,18 +235,13 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     private List<CtType<?>> copyTestClassesWithInvokingTests(CtMethod<?> method) {
         List<CtType<?>> generatedTestClasses = new ArrayList<>();
         LinkedHashMap<String, Set<String>> testClassMethodMap = new LinkedHashMap<>();
-        List<Map<String, String>> testArgs = currentTargetMethod.getTestArgs();
-        for (Map<String, String> testArgMap : testArgs) {
-            // extract fqn of test class from testArgMap
-            Object[] testClassMethodNames = testArgMap.keySet().toArray();
-            for (Object testClassMethodName : testClassMethodNames) {
-                String testClassName = testClassMethodName.toString()
-                        .replaceFirst("(.+)\\..+\\(.+\\)", "$1");
-                String testMethodName = testClassMethodName.toString()
-                        .replaceFirst("(.+)\\.(.+)\\(.+\\)", "$2");
-                testClassMethodMap.computeIfAbsent(testClassName,
-                        v -> new LinkedHashSet<>()).add(testMethodName);
-            }
+        Set<String> testsThatInvokeDirectly = currentTargetMethod.getTestsThatInvokeDirectly();
+        for (String test : testsThatInvokeDirectly) {
+            // extract fqn of test class from test method signature
+            String testClassName = test.replaceFirst("(.+)\\.([^.]*)$", "$1");
+            String testMethodName = test.replaceFirst("(.+)\\.([^.]*)$", "$2");
+            testClassMethodMap.computeIfAbsent(testClassName,
+                    v -> new LinkedHashSet<>()).add(testMethodName);
         }
         // maybe invoked in multiple tests within same test class: we will make one copy for each method
         logger.info("method invoked within " +
@@ -323,7 +261,8 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                             .replaceAll(",", "_")
                             .replaceAll("\\)", "")
                             + "_" + testMethod;
-                    CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass, testMethod, classNameSuffix);
+                    CtType<?> newClass = copyTestClassAndPrepareTestMethod(thisTestClass,
+                            testMethod, classNameSuffix);
                     logger.info("Generated class " + newClass.getQualifiedName());
                     generatedTestClasses.add(newClass);
                 }
@@ -332,7 +271,9 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         return generatedTestClasses;
     }
 
-    public void replaceCommonVars(CtType<?> generatedClass) {
+        public void replaceCommonVars(CtType<?> generatedClass) {
+        if (!shouldReplace)
+            return;
         Optional<CtMethod<?>> optionalTestMethod = generatedClass.getMethods().stream()
                 .filter(m -> m.getAnnotations().stream()
                         .anyMatch(a -> a.toString().contains("Test")))
@@ -376,19 +317,6 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             }
         }
       }
-      // for method invocations
-      else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)
-              && !method.isAbstract()) {
-        currentTargetMethod = targetMethod;
-        logger.info("Working on method " + fullMethodSignature);
-        List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
-        for (CtType<?> generatedClass : generatedClasses) {
-          // generate a static generator method, generateForMethod
-          generatedClass.addMethod(generateStaticParameterGeneratorMethod(
-                  generatedClass.getFactory()));
-          // replace parameter with call to generator
-          replaceOriginalMethodArgumentsWithArgsFromUnion(generatedClass);
-    }
 
     @Override
     public void process(CtMethod<?> method) {
@@ -416,13 +344,15 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                 }
             }
             // for method invocations
-            else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)) {
+            else if (targetMethod.getFullMethodSignature().equals(fullMethodSignature)
+                    && !method.isAbstract()) {
                 currentTargetMethod = targetMethod;
                 logger.info("Working on method " + fullMethodSignature);
                 List<CtType<?>> generatedClasses = copyTestClassesWithInvokingTests(method);
                 for (CtType<?> generatedClass : generatedClasses) {
                     // generate a static generator method, generateForMethod
-                    generatedClass.addMethod(generateStaticParameterGeneratorMethod(generatedClass.getFactory()));
+                    generatedClass.addMethod(generateStaticParameterGeneratorMethod(
+                            generatedClass.getFactory()));
                     replaceCommonVars(generatedClass);
                     // replace parameter with call to generator
                     replaceOriginalMethodArgumentsWithArgsFromUnion(generatedClass);

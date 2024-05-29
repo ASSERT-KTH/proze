@@ -12,10 +12,13 @@ public class GenerateLauncher {
   private static final Logger logger = LoggerFactory.getLogger(GenerateLauncher.class);
   private final Path projectPath;
   private final String projectName;
+  private final boolean shouldReplace;
 
-  public GenerateLauncher(Path projectPath) {
+  public GenerateLauncher(Path projectPath, boolean shouldReplace) {
     this.projectPath = projectPath;
     this.projectName = projectPath.getFileName().toString();
+    this.shouldReplace = shouldReplace;
+
   }
 
   public void processWithSpoon(List<TargetMethod> targetMethods) {
@@ -31,8 +34,11 @@ public class GenerateLauncher {
       return;
     }
     CtModel model = launcher.getModel();
-    model.processWith(new TestMethodProcessor(targetMethods, model));
+    model.processWith(new TestMethodProcessor(targetMethods, model, shouldReplace));
     String outputDirectory = "./output/generated/" + projectName;
+    if (shouldReplace) {
+      outputDirectory = "./output/generated/" + projectName + "-all-args-replaced";
+    }
     launcher.setSourceOutputDirectory(outputDirectory);
     launcher.prettyprint();
   }
