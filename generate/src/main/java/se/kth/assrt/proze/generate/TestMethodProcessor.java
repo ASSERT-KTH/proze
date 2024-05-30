@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.*;
@@ -173,7 +174,9 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     public CtType<?> generateOneParamTestPerAssertion(CtType<?> generatedClass) {
         for (CtMethod<?> method : generatedClass.getMethods()) {
             if (method.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains("ParameterizedTest"))) {
+                    .anyMatch(a -> a.toString().contains("ParameterizedTest"))
+                    || method.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().contains("Test(dataProvider"))) {
                 // get the number of assert statements
                 List<CtStatement> assertStatements = method.getBody().getStatements()
                         .stream().filter(s -> s.toString().contains("assert"))
@@ -218,7 +221,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
         return generatedClass;
     }
 
-    public void updateBeforeAfterAnnotations(CtType<?> copyOfTestClass) {
+    public void updateBeforeAfterAnnotationsJUnit(CtType<?> copyOfTestClass) {
         Map<String, Class<?>> annotations = Map.of(
                 ".BeforeClass", BeforeAll.class,
                 ".Before", BeforeEach.class,
@@ -269,23 +272,33 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
                 testMethodToCopy).get(0);
         Factory factory = copyOfTestClass.getFactory();
 
-        // BeforeClass => BeforeAll
-        // Before => BeforeEach
-        // AfterClass => AfterAll
-        // After => AfterEach
-        updateBeforeAfterAnnotations(copyOfTestClass);
-
         // remove @Test
         CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
                 .filter(a -> a.toString().contains("Test")).findFirst().get();
         targetTestMethod.removeAnnotation(testAnnotation);
-        // add @ParameterizedTest and @MethodSource annotations
-        targetTestMethod.addAnnotation(factory.createAnnotation(
-                factory.createCtTypeReference(ParameterizedTest.class)));
-        CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
-                factory.createCtTypeReference(MethodSource.class));
-        methodSourceAnnotation.addValue("value", generatorMethodName);
-        targetTestMethod.addAnnotation(methodSourceAnnotation);
+        if (testAnnotation.toString().contains("testng.annotations.Test"))
+            isTestNG = true;
+        if (isTestNG) {
+            // add @Test with datasource annotation
+            CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
+                    factory.createCtTypeReference(Test.class));
+            methodSourceAnnotation.addValue("dataProvider", generatorMethodName);
+            targetTestMethod.addAnnotation(methodSourceAnnotation);
+        } else {
+            // BeforeClass => BeforeAll
+            // Before => BeforeEach
+            // AfterClass => AfterAll
+            // After => AfterEach
+            updateBeforeAfterAnnotationsJUnit(copyOfTestClass);
+
+            // add @ParameterizedTest and @MethodSource annotations
+            targetTestMethod.addAnnotation(factory.createAnnotation(
+                    factory.createCtTypeReference(ParameterizedTest.class)));
+            CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
+                    factory.createCtTypeReference(MethodSource.class));
+            methodSourceAnnotation.addValue("value", generatorMethodName);
+            targetTestMethod.addAnnotation(methodSourceAnnotation);
+        }
         // add parameters
         for (int i = 0; i < currentTargetMethod.getParameters().size(); i++) {
             CtParameter<?> parameter = factory.createParameter()
