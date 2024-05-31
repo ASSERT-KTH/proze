@@ -19,9 +19,12 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     return methodBody.isPresent() && !methodBody.get().getStatements().isEmpty();
   }
 
+  // Consider only @Test methods without annotation values
+  // (such as @Test(dataProvider = "") in TestNG)
   private boolean methodHasTestAnnotation(CtMethod<?> method) {
     return (method.getAnnotations().stream()
-            .anyMatch(a -> a.toString().contains(".Test")));
+            .anyMatch(a -> a.toString().contains(".Test")
+            && a.getValues().isEmpty()));
   }
 
   private boolean methodHasAtLeastOneAssertion(CtMethod<?> method) {
