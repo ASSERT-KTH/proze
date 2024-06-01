@@ -24,7 +24,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   private boolean methodHasTestAnnotation(CtMethod<?> method) {
     return (method.getAnnotations().stream()
             .anyMatch(a -> a.toString().contains(".Test")
-            && a.getValues().isEmpty()));
+            && !a.getValues().containsKey("dataProvider")));
   }
 
   private boolean methodHasAtLeastOneAssertion(CtMethod<?> method) {
