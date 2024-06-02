@@ -24,7 +24,7 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   private boolean methodHasTestAnnotation(CtMethod<?> method) {
     return (method.getAnnotations().stream()
             .anyMatch(a -> a.toString().contains(".Test")
-            && a.getValues().isEmpty()));
+            && !a.getValues().containsKey("dataProvider")));
   }
 
   private boolean methodHasAtLeastOneAssertion(CtMethod<?> method) {
@@ -72,6 +72,15 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
 
     }
     return invocationLiterals;
+  }
+
+  private int getNumberOfAssertionsInTest(CtMethod<?> testMethod) {
+    int numAssertions = 0;
+    for (CtInvocation<?> invocation : testMethod.getElements(new TypeFilter<>(CtInvocation.class))) {
+      if (invocation.getExecutable().getSimpleName().startsWith("assert"))
+        numAssertions++;
+    }
+    return numAssertions;
   }
 
   private List<InvocationWithPrimitiveParams> getConstructorInvocationsWithPrimitiveParams(CtStatement statement) {
@@ -155,7 +164,8 @@ public class ProzeTestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
               method.getDeclaringType().getQualifiedName(),
               method.getSimpleName(),
               method.getSignature(),
-              invocationWithPrimitiveParams);
+              invocationWithPrimitiveParams,
+              getNumberOfAssertionsInTest(method));
       testMethods.add(testMethod);
       // If there are candidate invocations within this test, get test class name
       if (!invocationWithPrimitiveParams.isEmpty()) {
