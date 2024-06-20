@@ -4,37 +4,42 @@ import sys
 def calculate_metrics(test_methods):
   fontbox = {"module_fqn": "org.apache.fontbox.",
              "all_cuts": 0,
-             "eligible_cuts": 0,
-             "invocations": 0,
-             "assertions": 0,
+             "all_assertions": 0,
+             "cuts_eligible": 0,
+             "invocations_eligible": 0,
+             "assertions_eligible": 0,
              "target_methods": set()}
 
   xmpbox = {"module_fqn": "org.apache.xmpbox.",
             "all_cuts": 0,
-            "eligible_cuts": 0,
-            "invocations": 0,
-            "assertions": 0,
+            "all_assertions": 0,
+            "cuts_eligible": 0,
+            "invocations_eligible": 0,
+            "assertions_eligible": 0,
             "target_methods": set()}
 
   pdfbox = {"module_fqn": "org.apache.pdfbox.",
             "all_cuts": 0,
-            "eligible_cuts": 0,
-            "invocations": 0,
-            "assertions": 0,
+            "all_assertions": 0,
+            "cuts_eligible": 0,
+            "invocations_eligible": 0,
+            "assertions_eligible": 0,
             "target_methods": set()}
 
   sso = {"module_fqn": "org.wso2.carbon.identity.sso.saml",
          "all_cuts": 0,
-         "eligible_cuts": 0,
-         "invocations": 0,
-         "assertions": 0,
+         "all_assertions": 0,
+         "cuts_eligible": 0,
+         "invocations_eligible": 0,
+         "assertions_eligible": 0,
          "target_methods": set()}
 
   query = {"module_fqn": "org.wso2.carbon.identity.query.saml",
            "all_cuts": 0,
-           "eligible_cuts": 0,
-           "invocations": 0,
-           "assertions": 0,
+           "all_assertions": 0,
+           "cuts_eligible": 0,
+           "invocations_eligible": 0,
+           "assertions_eligible": 0,
            "target_methods": set()}
 
   modules = [fontbox, xmpbox, pdfbox, sso, query]
@@ -45,13 +50,14 @@ def calculate_metrics(test_methods):
     for m in range(len(modules)):
       if (test_methods[t]["testClassName"].startswith(modules[m]["module_fqn"])):
         modules[m]["all_cuts"] += 1
+        modules[m]["all_assertions"] += test_methods[t]["numAssertions"]
     # find eligible CUTs + related info (eligible_cuts)
     if (len(test_methods[t]["invocationWithPrimitiveParams"]) > 0):
       for m in range(len(modules)):
         if (test_methods[t]["testClassName"].startswith(modules[m]["module_fqn"])):
-          modules[m]["eligible_cuts"] += 1
-          modules[m]["invocations"] += len(test_methods[t]["invocationWithPrimitiveParams"])
-          modules[m]["assertions"] += test_methods[t]["numAssertions"]
+          modules[m]["cuts_eligible"] += 1
+          modules[m]["invocations_eligible"] += len(test_methods[t]["invocationWithPrimitiveParams"])
+          modules[m]["assertions_eligible"] += test_methods[t]["numAssertions"]
           for i in range(len(test_methods[t]["invocationWithPrimitiveParams"])):
             modules[m]["target_methods"].add(
               test_methods[t]["invocationWithPrimitiveParams"][i]["fullMethodSignature"])
