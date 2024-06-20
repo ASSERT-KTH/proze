@@ -9,6 +9,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.*;
@@ -30,6 +32,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   static final String generatorMethodName = "provideProzeArguments";
   // to prevent the same constructor call from being handled multiple times
   static Set<String> processedMethodSignatures = new LinkedHashSet<>();
+  private static boolean isTestNG = false;
 
   public TestMethodProcessor(List<TargetMethod> targetMethods, CtModel model) {
     this.targetMethods = targetMethods;
@@ -39,7 +42,9 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   public void replaceOriginalConstructorArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
     CtMethod<?> testMethod = generatedClass.getMethods().stream()
             .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains("ParameterizedTest")))
+                    .anyMatch(a -> a.toString().contains("ParameterizedTest"))
+                    || m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().contains("Test(dataProvider")))
             .findFirst().get();
     List<CtConstructorCall<?>> constructorCalls = testMethod.getBody()
             .getElements(new TypeFilter<>(CtConstructorCall.class));
@@ -61,7 +66,9 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   public void replaceOriginalMethodArgumentsWithArgsFromUnion(CtType<?> generatedClass) {
     CtMethod<?> testMethod = generatedClass.getMethods().stream()
             .filter(m -> m.getAnnotations().stream()
-                    .anyMatch(a -> a.toString().contains("ParameterizedTest")))
+                    .anyMatch(a -> a.toString().contains("ParameterizedTest"))
+                    || m.getAnnotations().stream()
+                    .anyMatch(a -> a.toString().contains("Test(dataProvider")))
             .findFirst().get();
     List<CtInvocation<?>> invocations = testMethod.getBody()
             .getElements(new TypeFilter<>(CtInvocation.class));
@@ -80,6 +87,37 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
   }
 
   public CtMethod<?> generateStaticParameterGeneratorMethod(Factory factory) {
+    if (isTestNG) {
+      return generateDataProviderTestNG(factory);
+    } else {
+      return generateStaticParameterGeneratorJUnit(factory);
+    }
+  }
+
+  public CtMethod<?> generateDataProviderTestNG(Factory factory) {
+    CtMethod<?> generatorMethod = factory.createMethod().setSimpleName("values");
+    // make method private and static
+    generatorMethod.setModifiers(Set.of(ModifierKind.PRIVATE, ModifierKind.STATIC));
+    // add testng data provider annotation
+    CtAnnotation<?> dataProviderAnnotation = factory.createAnnotation(
+            factory.createCtTypeReference(DataProvider.class));
+    dataProviderAnnotation.addValue("name", generatorMethodName);
+    generatorMethod.addAnnotation(dataProviderAnnotation);
+    // set type as Object[][]
+    CtTypeReference<?> streamCtTypeReference = factory.createCtTypeReference(java.lang.Object[][].class);
+    generatorMethod.setType(streamCtTypeReference);
+    // body
+    CtBlock<?> methodBody = factory.createBlock();
+    StringBuilder arguments = buildArguments(currentTargetMethod.getUnionProdAndTestArgs(),
+            "new java.lang.Object[]{", "}");
+    methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
+            "return new java.lang.Object[][]{\n%s\n}",
+            arguments)));
+    generatorMethod.setBody(methodBody);
+    return generatorMethod;
+  }
+
+  public CtMethod<?> generateStaticParameterGeneratorJUnit(Factory factory) {
     CtMethod<?> generatorMethod = factory.createMethod().setSimpleName(generatorMethodName);
     // make method private and static
     generatorMethod.setModifiers(Set.of(ModifierKind.PRIVATE, ModifierKind.STATIC));
@@ -90,11 +128,19 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     generatorMethod.setType(streamCtTypeReference);
     // body
     CtBlock<?> methodBody = factory.createBlock();
-    // union of test and prod
+    StringBuilder arguments = buildArguments(currentTargetMethod.getUnionProdAndTestArgs(),
+            "org.junit.jupiter.params.provider.Arguments.of(", ")");
+    methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
+            "return java.util.stream.Stream.of(\n%s\n)",
+            arguments)));
+    generatorMethod.setBody(methodBody);
+    return generatorMethod;
+  }
+
+  private StringBuilder buildArguments(List<String> argsList, String returnTypeStart, String returnTypeEnd) {
     StringBuilder arguments = new StringBuilder();
-    for (int i = 0; i < currentTargetMethod.getUnionProdAndTestArgs().size(); i++) {
-      String[] args = currentTargetMethod.getUnionProdAndTestArgs().get(i)
-              .split(",");
+    for (int i = 0; i < argsList.size(); i++) {
+      String[] args = argsList.get(i).split(",");
       for (int j = 0; j < currentTargetMethod.getParameters().size(); j++) {
         if (currentTargetMethod.getParameters().get(j).equals("java.lang.String")) {
           if (args[j].equals("PROZE-NULL-STRING"))
@@ -112,28 +158,26 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             args[j] = args[j].replaceAll("PROZE-EMPTY-STRING", "");
           }
         } else if (currentTargetMethod.getParameters().get(j).equals("boolean")) {
-          args[j] = args[j].toLowerCase();
+            args[j] = args[j].toLowerCase();
         }
       }
       String argsAsString = Arrays.toString(args).substring(1);
       argsAsString = argsAsString.substring(0, argsAsString.length() - 1);
-      arguments.append("org.junit.jupiter.params.provider.Arguments.of(")
-              .append(argsAsString).append(")");
+      arguments.append(returnTypeStart)
+              .append(argsAsString).append(returnTypeEnd);
       if (i < currentTargetMethod.getUnionProdAndTestArgs().size() - 1) {
         arguments.append(",\n");
       }
     }
-    methodBody.addStatement(factory.createCodeSnippetStatement(String.format(
-            "return java.util.stream.Stream.of(\n%s\n)",
-            arguments)));
-    generatorMethod.setBody(methodBody);
-    return generatorMethod;
+    return arguments;
   }
 
   public CtType<?> generateOneParamTestPerAssertion(CtType<?> generatedClass) {
     for (CtMethod<?> method : generatedClass.getMethods()) {
       if (method.getAnnotations().stream()
-              .anyMatch(a -> a.toString().contains("ParameterizedTest"))) {
+              .anyMatch(a -> a.toString().contains("ParameterizedTest"))
+              || method.getAnnotations().stream()
+              .anyMatch(a -> a.toString().contains("Test(dataProvider"))) {
         // get the number of assert statements
         List<CtStatement> assertStatements = method.getBody().getStatements()
                 .stream().filter(s -> s.toString().contains("assert"))
@@ -229,23 +273,33 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             testMethodToCopy).get(0);
     Factory factory = copyOfTestClass.getFactory();
 
-    // BeforeClass => BeforeAll
-    // Before => BeforeEach
-    // AfterClass => AfterAll
-    // After => AfterEach
-    updateBeforeAfterAnnotations(copyOfTestClass);
-
     // remove @Test
     CtAnnotation<?> testAnnotation = targetTestMethod.getAnnotations().stream()
             .filter(a -> a.toString().contains("Test")).findFirst().get();
     targetTestMethod.removeAnnotation(testAnnotation);
-    // add @ParameterizedTest and @MethodSource annotations
-    targetTestMethod.addAnnotation(factory.createAnnotation(
-            factory.createCtTypeReference(ParameterizedTest.class)));
-    CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
-            factory.createCtTypeReference(MethodSource.class));
-    methodSourceAnnotation.addValue("value", generatorMethodName);
-    targetTestMethod.addAnnotation(methodSourceAnnotation);
+    if (testAnnotation.toString().contains("testng.annotations.Test"))
+      isTestNG = true;
+    if (isTestNG) {
+      // add @Test with datasource annotation
+      CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
+              factory.createCtTypeReference(Test.class));
+      methodSourceAnnotation.addValue("dataProvider", generatorMethodName);
+      targetTestMethod.addAnnotation(methodSourceAnnotation);
+    } else {
+      // BeforeClass => BeforeAll
+      // Before => BeforeEach
+      // AfterClass => AfterAll
+      // After => AfterEach
+      updateBeforeAfterAnnotations(copyOfTestClass);
+
+      // add @ParameterizedTest and @MethodSource annotations
+      targetTestMethod.addAnnotation(factory.createAnnotation(
+              factory.createCtTypeReference(ParameterizedTest.class)));
+      CtAnnotation<?> methodSourceAnnotation = factory.createAnnotation(
+              factory.createCtTypeReference(MethodSource.class));
+      methodSourceAnnotation.addValue("value", generatorMethodName);
+      targetTestMethod.addAnnotation(methodSourceAnnotation);
+    }
     // add parameters
     for (int i = 0; i < currentTargetMethod.getParameters().size(); i++) {
       CtParameter<?> parameter = factory.createParameter()
