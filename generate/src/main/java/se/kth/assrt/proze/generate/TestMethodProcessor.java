@@ -124,7 +124,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
     // set type as Stream<Arguments>
     CtTypeReference<?> streamCtTypeReference = factory.createCtTypeReference(Stream.class);
     streamCtTypeReference.setActualTypeArguments(List.of(factory
-    .createCtTypeReference(Arguments.class)));
+            .createCtTypeReference(Arguments.class)));
     generatorMethod.setType(streamCtTypeReference);
     // body
     CtBlock<?> methodBody = factory.createBlock();
@@ -144,30 +144,30 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
       for (int j = 0; j < currentTargetMethod.getParameters().size(); j++) {
         if (currentTargetMethod.getParameters().get(j).equals("java.lang.String")) {
           if (args[j].equals("PROZE-NULL-STRING"))
-              args[j] = null;
+            args[j] = null;
           else {
-              // escape all " within this arg
-              args[j] = args[j].replaceAll("\"", "\\\\\"");
-              // remove all \n within this arg
-              args[j] = args[j].replaceAll("\n", "");
-              // enclose string within quotes => "arg"
-              args[j] = "\"" + args[j] + "\"";
-              // put back removed commas
-              args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
-              // put back empty strings
-              args[j] = args[j].replaceAll("PROZE-EMPTY-STRING", "");
+            // escape all " within this arg
+            args[j] = args[j].replaceAll("\"", "\\\\\"");
+            // remove all \n within this arg
+            args[j] = args[j].replaceAll("\n", "");
+            // enclose string within quotes => "arg"
+            args[j] = "\"" + args[j] + "\"";
+            // put back removed commas
+            args[j] = args[j].replaceAll("PROZE-REDACTED-COMMA", ",");
+            // put back empty strings
+            args[j] = args[j].replaceAll("PROZE-EMPTY-STRING", "");
           }
         } else if (currentTargetMethod.getParameters().get(j).equals("boolean")) {
             args[j] = args[j].toLowerCase();
         }
       }
-        String argsAsString = Arrays.toString(args).substring(1);
-        argsAsString = argsAsString.substring(0, argsAsString.length() - 1);
-        arguments.append(returnTypeStart)
-                .append(argsAsString).append(returnTypeEnd);
-        if (i < currentTargetMethod.getUnionProdAndTestArgs().size() - 1) {
-            arguments.append(",\n");
-        }
+      String argsAsString = Arrays.toString(args).substring(1);
+      argsAsString = argsAsString.substring(0, argsAsString.length() - 1);
+      arguments.append(returnTypeStart)
+              .append(argsAsString).append(returnTypeEnd);
+      if (i < currentTargetMethod.getUnionProdAndTestArgs().size() - 1) {
+        arguments.append(",\n");
+      }
     }
     return arguments;
   }
