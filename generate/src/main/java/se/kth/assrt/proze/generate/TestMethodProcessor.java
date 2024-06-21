@@ -158,7 +158,7 @@ public class TestMethodProcessor extends AbstractProcessor<CtMethod<?>> {
             args[j] = args[j].replaceAll("PROZE-EMPTY-STRING", "");
           }
         } else if (currentTargetMethod.getParameters().get(j).equals("boolean")) {
-            args[j] = args[j].toLowerCase();
+          args[j] = args[j].toLowerCase();
         }
       }
       String argsAsString = Arrays.toString(args).substring(1);
