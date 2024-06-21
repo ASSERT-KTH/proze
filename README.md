@@ -1,7 +1,7 @@
 ## Proze
 
-### [Anonymized dataset](https://anonymous.4open.science/r/proze-dataset) 🔭
-
+### Anonymized dataset 🔭
+https://anonymous.4open.science/r/proze-dataset
 
 ### `select`: Select target methods
 - `cd /path/to/proze/select/` 
