@@ -1,7 +1,21 @@
 ## Proze
 
-### Anonymized dataset 🔭
-https://anonymous.4open.science/r/proze-dataset
+See [PROZE: Generating Parameterized Unit Tests Informed by Runtime Data](http://arxiv.org/pdf/2407.00768) (Deepika Tiwari, Yogya Gamage, Martin Monperrus and Benoit Baudry), In Proceedings of IEEE Conference on Source Code Analysis and Manipulation, 2024.
+
+```bibtex
+@inproceedings{2407.00768,
+ title = {PROZE: Generating Parameterized Unit Tests Informed by Runtime Data},
+ booktitle = {Proceedings of IEEE Conference on Source Code Analysis and   Manipulation},
+ year = {2024},
+ doi = {10.1109/SCAM63643.2024.00025},
+ author = {Deepika Tiwari and Yogya Gamage and Martin Monperrus and Benoit Baudry},
+ url = {http://arxiv.org/pdf/2407.00768},
+}
+```
+
+### Dataset 🔭
+
+See <https://github.com/ASSERT-KTH/proze-experiments>
 
 ### `select`: Select target methods
 - `cd /path/to/proze/select/` 
